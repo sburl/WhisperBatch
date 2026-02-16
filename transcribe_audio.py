@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from whisper_batch_core import (
+    SUPPORTED_EXTENSIONS,
     load_model,
     transcribe_file,
 )
@@ -25,8 +26,8 @@ def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, 
     return result.text
 
 def process_directory(directory_path, model_name="large-v3", include_timestamps=True):
-    """Process all audio files in the given directory"""
-    audio_extensions = {'.wav', '.mp3', '.mpeg', '.mp4', '.m4a'}
+    """Process all supported audio/video files in the given directory"""
+    audio_extensions = SUPPORTED_EXTENSIONS
     directory = Path(directory_path)
     
     if not directory.exists():
