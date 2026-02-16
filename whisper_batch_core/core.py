@@ -6,6 +6,16 @@ from faster_whisper import WhisperModel
 
 from .types import TranscriptSegment, TranscriptionResult
 
+# All formats supported by FFmpeg that faster-whisper can extract audio from.
+SUPPORTED_EXTENSIONS = {
+    # Audio
+    '.aac', '.aiff', '.alac', '.ape', '.flac', '.m4a', '.mp3',
+    '.ogg', '.opus', '.wav', '.wma',
+    # Video (audio track extracted automatically)
+    '.3gp', '.avi', '.flv', '.m4v', '.mkv', '.mov', '.mp4',
+    '.mpeg', '.mpg', '.ts', '.webm', '.wmv',
+}
+
 
 def load_model(model_name: str, device: str = "auto", compute_type: Optional[str] = None) -> WhisperModel:
     """Load a faster-whisper model with the requested device/compute settings."""

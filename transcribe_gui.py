@@ -10,6 +10,7 @@ import librosa
 import time
 
 from whisper_batch_core import (
+    SUPPORTED_EXTENSIONS,
     format_timestamp as core_format_timestamp,
     load_model as core_load_model,
     render_plain_text,
@@ -174,7 +175,7 @@ class TranscriptionApp:
         # File selection button
         self.select_button = ttk.Button(
             self.left_frame, 
-            text="Add Audio Files",
+            text="Add Media Files",
             command=self.select_files
         )
         self.select_button.grid(row=1, column=0, pady=5)
@@ -668,8 +669,9 @@ class TranscriptionApp:
                 self.queue.put(("status", "Click 'Pause' to add more files"))
                 return
 
+            _ext_glob = " ".join(f"*{ext}" for ext in sorted(SUPPORTED_EXTENSIONS))
             filetypes = (
-                ("Audio files", "*.wav *.mp3 *.mpeg *.mp4 *.m4a"),
+                ("Audio/Video files", _ext_glob),
                 ("All files", "*.*")
             )
             

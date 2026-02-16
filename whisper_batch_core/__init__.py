@@ -1,4 +1,5 @@
 from .core import (
+    SUPPORTED_EXTENSIONS,
     format_timestamp,
     load_model,
     render_plain_text,
@@ -9,6 +10,7 @@ from .core import (
 from .types import TranscriptSegment, TranscriptionResult
 
 __all__ = [
+    "SUPPORTED_EXTENSIONS",
     "TranscriptSegment",
     "TranscriptionResult",
     "format_timestamp",
