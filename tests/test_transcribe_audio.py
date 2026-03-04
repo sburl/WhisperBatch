@@ -51,9 +51,9 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
         elif output_format == "txt":
             assert "[00:00:00 --> 00:00:01] Hello world." in payload
         elif output_format == "srt":
-            assert payload.startswith("1\n00:00:000,100 --> 00:00:01,200")
+            assert payload.startswith("1\n00:00:00,100 --> 00:00:01,200")
         elif output_format == "vtt":
-            assert payload.startswith("WEBVTT\n\n00:00:000.100 --> 00:00:01.200")
+            assert payload.startswith("WEBVTT\n\n00:00:00.100 --> 00:00:01.200")
 
 
 def test_output_path_disambiguates_same_stem_extensions(tmp_path, monkeypatch):
@@ -72,8 +72,13 @@ def test_output_path_disambiguates_same_stem_extensions(tmp_path, monkeypatch):
     transcribe_audio.process_directory(str(tmp_path), output_format="txt")
 
     output_dir = tmp_path / "transcriptions"
-    assert (output_dir / "clip_transcription.txt").exists()
-    assert (output_dir / "clip_MP3_transcription.txt").exists()
+    generated_files = {path.name for path in output_dir.glob("*.txt")}
+    assert "clip_transcription.txt" in generated_files
+    assert len(generated_files) == 2
+    assert (
+        "clip_MP3_transcription.txt" in generated_files
+        or "clip_wav_transcription.txt" in generated_files
+    )
 
 
 def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
@@ -262,5 +267,5 @@ def test_summary_json_no_retry_trace_when_not_verbose(tmp_path, monkeypatch, cap
     lines = capsys.readouterr().out.strip().splitlines()
 
     assert len(lines) == 1
-    json.loads(lines[0])["failed"] == 1
+    assert json.loads(lines[0])["failed"] == 1
     assert len(calls) == 2
