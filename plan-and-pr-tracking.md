@@ -149,8 +149,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 101 | PR-DQ | Align CLI core constants and resume helpers in `whisper_batch_core` | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Restores missing shared constants/helpers required by GUI imports and CLI/GUI parity. |
 | 102 | PR-DR | Reuse core timestamp-only format constant in CLI output rendering | `transcribe_audio.py` | In progress | Pending (Gemini quota) | Removes local constant duplication for timestamp-only formats by sourcing from shared core constant. |
 | 103 | PR-DV | Reject unsupported model names in directory processing | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | In progress | Gemini requested | Add fail-fast validation before loading model and explicit regression coverage for unsupported model names. |
-| 104 | PR-DW | Ensure CI installs setuptools/wheel before requirements resolution | `.github/workflows/ci.yml` | In progress | Gemini requested | Adds resilient dependency installation to avoid build-backend failures in GitHub-hosted Python matrix runs. |
-| 105 | PR-DX | Update pinned numpy for Python 3.12/3.13 compatibility | `requirements.txt`, `requirements-dev.txt` | In progress | Gemini requested | Bumps runtime numpy pin to `2.0.2` to avoid source-build failures during CI dependency resolution. |
+| 104 | PR-DW | Make CI dependency bootstrap resilient on GitHub Python hosts | `.github/workflows/ci.yml`, `requirements.txt` | In progress | Gemini requested | Installs setuptools/wheel explicitly and bumps runtime numpy pin to `2.0.2` to avoid build-backend failures and source-build constraints. |
 
 ### PR-E execution notes
 
