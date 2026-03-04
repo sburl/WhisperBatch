@@ -76,6 +76,11 @@ class TestOutputFormatHelpers(unittest.TestCase):
         self.assertEqual(parsed["segments"][0]["text"], "Hello")
         self.assertAlmostEqual(parsed["segments"][0]["start"], 0.0)
         self.assertAlmostEqual(parsed["segments"][1]["end"], 61.999)
+        self.assertFalse(parsed["segments"][0]["include_timestamps"])
+
+        output_payload_with_timestamps = _render_output_text(self.segments, "json", True)
+        parsed_with_timestamps = json.loads(output_payload_with_timestamps)
+        self.assertTrue(parsed_with_timestamps["segments"][0]["include_timestamps"])
 
     def test_render_output_text_unknown_format_raises(self):
         with self.assertRaises(ValueError):
