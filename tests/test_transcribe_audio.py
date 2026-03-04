@@ -249,6 +249,20 @@ class AudioTests(unittest.TestCase):
                 "python -m scripts.postprocess",
             )
 
+    def test_run_postprocess_hook_reports_missing_command(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as file:
+            output_file = Path(file.name)
+
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                transcribe_audio._run_postprocess_hook(
+                    output_file,
+                    "definitely-not-a-real-command",
+                )
+            self.assertIn("could not be executed", str(ctx.exception))
+        finally:
+            Path(output_file).unlink(missing_ok=True)
+
     @patch("transcribe_audio._load_postprocess_plugin")
     @patch("transcribe_audio.transcribe_file")
     @patch("transcribe_audio.load_model")

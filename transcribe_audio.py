@@ -749,12 +749,16 @@ def _run_postprocess_hook(output_file: Path, postprocess_command: str):
     if not command:
         raise ValueError("--postprocess-cmd must include an executable command.")
 
-    completed = subprocess.run(
-        command + [str(output_file)],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(
+            command + [str(output_file)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise RuntimeError(f"Postprocess hook command could not be executed: {command[0]}") from exc
+
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         message = f"Postprocess hook failed for {output_file} with exit code {completed.returncode}."
