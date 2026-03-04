@@ -1,5 +1,8 @@
 # WhisperBatch
 
+**Created:** 2025-05-09-01-32
+**Last Updated:** 2026-01-09-17-49
+
 A Python package and GUI application for transcribing audio files using [faster-whisper](https://github.com/Systran/faster-whisper). Use the GUI for batch processing with a user-friendly interface, or install the package to use the transcription API in your own Python projects.
 
 ---
