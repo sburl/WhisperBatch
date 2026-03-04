@@ -1,0 +1,6 @@
+-r requirements.txt
+pip-tools>=7.4,<8
+
+ruff>=0.5,<1
+bandit>=1.7,<2
+pip-audit>=2.7,<3
