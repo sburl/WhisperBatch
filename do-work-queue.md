@@ -45,7 +45,7 @@ Stage 1 task 3 (validation and actionable errors) is covered by [PR-M](plan-and-
 Stage 1 task 2 (CLI summary output) is covered by [PR-N](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and now [PR-DI](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 1 task 4 (output format flags) is now covered by [PR-DG](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 1 (retry handling for transient failures) is now covered by [PR-AD](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
-Stage 2 task 5 (machine-readable summary output) is covered by [PR-P](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
+Stage 2 task 5 (machine-readable summary output) is covered by [PR-P](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and [PR-DK](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 4 (duration/throughput metrics visibility) is now covered by [PR-AI](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 6 (CLI usage and debugging examples) is covered by [PR-S](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Improvements task 10 (configurable worker concurrency for future GPU batching) is now covered by [PR-AR](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and [PR-AS](plan-and-pr-tracking.md#pr-as).

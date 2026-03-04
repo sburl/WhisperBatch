@@ -3,6 +3,7 @@
 import argparse
 import json
 from pathlib import Path
+import time
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
@@ -119,6 +120,7 @@ def process_directory(
     include_timestamps=True,
     output_format="txt",
     overwrite=False,
+    summary_json=False,
 ):
     """Process all supported audio/video files in the given directory"""
     directory = Path(directory_path)
@@ -145,6 +147,8 @@ def process_directory(
         "failed": 0,
         "skipped": total_entries - total_candidates,
     }
+
+    start_time = time.perf_counter()
 
     # Process each audio file
     for file_path in supported_files:
@@ -174,11 +178,19 @@ def process_directory(
             print(f"Error processing {file_path.name}: {str(e)}")
             summary["failed"] += 1
 
-    print(
-        "Summary: "
-        f"success={summary['success']}, failed={summary['failed']}, "
-        f"skipped={summary['skipped']}, total={summary['total']}"
-    )
+    elapsed_seconds = round(time.perf_counter() - start_time, 3)
+    summary["elapsed_seconds"] = elapsed_seconds
+    throughput = summary["success"] / elapsed_seconds if elapsed_seconds > 0 else 0.0
+    summary["throughput_files_per_second"] = throughput
+
+    if summary_json:
+        print(json.dumps(summary, sort_keys=True))
+    else:
+        print(
+            "Summary: "
+            f"success={summary['success']}, failed={summary['failed']}, "
+            f"skipped={summary['skipped']}, total={summary['total']}"
+        )
     return summary
 
 def main():
@@ -200,6 +212,11 @@ def main():
         action="store_true",
         help="Overwrite existing transcript files (default: skip)",
     )
+    parser.add_argument(
+        "--summary-json",
+        action="store_true",
+        help="Emit summary as a single JSON object",
+    )
     
     args = parser.parse_args()
     
@@ -210,6 +227,7 @@ def main():
             not args.no_timestamps,
             args.output_format,
             overwrite=args.overwrite,
+            summary_json=args.summary_json,
         )
     except Exception as e:
         print(f"Error: {str(e)}")

@@ -73,7 +73,10 @@ def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
     monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
 
     summary = transcribe_audio.process_directory(str(tmp_path), output_format="txt")
-    assert summary == {"total": 2, "success": 1, "failed": 1, "skipped": 1}
+    assert summary["total"] == 2
+    assert summary["success"] == 1
+    assert summary["failed"] == 1
+    assert summary["skipped"] == 1
 
 
 def test_process_directory_skips_existing_output_without_overwrite_flag(tmp_path, monkeypatch):
@@ -97,7 +100,10 @@ def test_process_directory_skips_existing_output_without_overwrite_flag(tmp_path
 
     summary = transcribe_audio.process_directory(str(tmp_path), output_format="txt", overwrite=False)
 
-    assert summary == {"total": 1, "success": 0, "failed": 0, "skipped": 1}
+    assert summary["total"] == 1
+    assert summary["success"] == 0
+    assert summary["failed"] == 0
+    assert summary["skipped"] == 1
     assert calls == []
     assert existing_output.read_text(encoding="utf-8") == "old transcription"
 
@@ -122,5 +128,54 @@ def test_process_directory_overwrites_existing_output_with_overwrite_flag(tmp_pa
         overwrite=True,
     )
 
-    assert summary == {"total": 1, "success": 1, "failed": 0, "skipped": 0}
+    assert summary["total"] == 1
+    assert summary["success"] == 1
+    assert summary["failed"] == 0
+    assert summary["skipped"] == 0
     assert "new" in existing_output.read_text(encoding="utf-8")
+
+
+def test_process_directory_adds_elapsed_and_throughput_to_summary(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        transcribe_audio,
+        "transcribe_file",
+        lambda audio_path, **kwargs: _FakeTranscriptionResult("ok", [TranscriptSegment(start=0, end=0, text="ok")]),
+    )
+
+    fake_perf_counter = [0.0]
+
+    def fake_perf_counter_seq():
+        value = fake_perf_counter[0]
+        fake_perf_counter[0] += 1.0
+        return value
+
+    monkeypatch.setattr(transcribe_audio.time, "perf_counter", fake_perf_counter_seq)
+
+    summary = transcribe_audio.process_directory(str(tmp_path), summary_json=False)
+
+    assert "elapsed_seconds" in summary
+    assert summary["elapsed_seconds"] == 1.0
+    assert "throughput_files_per_second" in summary
+
+
+def test_process_directory_prints_summary_json_when_requested(tmp_path, monkeypatch, capsys):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        transcribe_audio,
+        "transcribe_file",
+        lambda audio_path, **kwargs: _FakeTranscriptionResult("ok", [TranscriptSegment(start=0, end=0, text="ok")]),
+    )
+    monkeypatch.setattr(transcribe_audio.time, "perf_counter", lambda: 0.0)
+
+    transcribe_audio.process_directory(str(tmp_path), summary_json=True)
+    output = capsys.readouterr().out.strip().splitlines()[-1]
+    summary = json.loads(output)
+
+    assert summary["total"] == 1
+    assert summary["success"] == 1
+    assert summary["failed"] == 0
+    assert summary["skipped"] == 0
+    assert "elapsed_seconds" in summary
