@@ -7,13 +7,15 @@ import time
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
+    SUPPORTED_MODELS,
+    SUPPORTED_OUTPUT_FORMATS,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_OUTPUT_FORMAT,
     render_plain_text,
     render_timestamped_text,
     load_model,
     transcribe_file,
 )
-
-SUPPORTED_OUTPUT_FORMATS = {"txt", "json", "srt", "vtt"}
 TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
@@ -104,10 +106,10 @@ def _output_extension(output_format: str):
 
 def transcribe_audio(
     file_path,
-    model_name="large-v3",
+    model_name=DEFAULT_MODEL_NAME,
     include_timestamps=True,
     model=None,
-    output_format="txt",
+    output_format=DEFAULT_OUTPUT_FORMAT,
     verbose=True,
 ):
     """Transcribe audio file using faster-whisper"""
@@ -158,9 +160,9 @@ def _transcribe_with_retries(
 
 def process_directory(
     directory_path,
-    model_name="large-v3",
+    model_name=DEFAULT_MODEL_NAME,
     include_timestamps=True,
-    output_format="txt",
+    output_format=DEFAULT_OUTPUT_FORMAT,
     overwrite=False,
     summary_json=False,
     max_retries=0,
@@ -249,16 +251,19 @@ def process_directory(
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")
     parser.add_argument("directory", help="Directory containing audio files to transcribe")
-    parser.add_argument("--model", default="large-v3", 
-                      choices=["tiny", "base", "small", "medium", "large-v3"],
-                      help="faster-whisper model to use (default: large-v3)")
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL_NAME,
+        choices=sorted(SUPPORTED_MODELS),
+        help=f"faster-whisper model to use (default: {DEFAULT_MODEL_NAME})",
+    )
     parser.add_argument("--no-timestamps", action="store_true",
                       help="Disable timestamps in output")
     parser.add_argument(
         "--output-format",
-        default="txt",
+        default=DEFAULT_OUTPUT_FORMAT,
         choices=sorted(SUPPORTED_OUTPUT_FORMATS),
-        help="Output format to write for each transcription (default: txt)",
+        help=f"Output format to write for each transcription (default: {DEFAULT_OUTPUT_FORMAT})",
     )
     parser.add_argument(
         "--overwrite",
