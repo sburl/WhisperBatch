@@ -177,7 +177,8 @@ def process_directory(
     if max_retries < 0:
         raise ValueError(f"max_retries must be >= 0: {max_retries}")
     if model_name not in SUPPORTED_MODELS:
-        raise ValueError(f"Unsupported model: {model_name}")
+        supported = ", ".join(SUPPORTED_MODELS)
+        raise ValueError(f"Unsupported model: {model_name}. Supported models: {supported}")
     verbose = not summary_json
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes

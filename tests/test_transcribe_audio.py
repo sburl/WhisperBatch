@@ -251,7 +251,7 @@ def test_process_directory_rejects_unsupported_model_name(tmp_path, monkeypatch)
 
     monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("load_model should not be called")))
 
-    with pytest.raises(ValueError, match="Unsupported model"):
+    with pytest.raises(ValueError, match=r"Unsupported model: invalid\. Supported models"):
         transcribe_audio.process_directory(str(tmp_path), model_name="invalid")
 
 
