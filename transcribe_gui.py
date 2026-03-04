@@ -18,7 +18,6 @@ from whisper_batch_core import (
     DEFAULT_TASK_NAME,
     DEFAULT_MODEL_NAME,
     SUPPORTED_MODELS,
-    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     MODEL_METADATA,
     get_model_cache_dir,
     is_model_cached,
