@@ -32,6 +32,8 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+    if not directory.is_dir():
+        raise ValueError(f"Not a directory: {directory_path}")
 
     media_files = [
         entry
