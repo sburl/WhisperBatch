@@ -15,4 +15,4 @@ whisperbatch = "transcribe_audio:cli"
 
 [tool.setuptools]
 packages = ["whisper_batch_core"]
-py_modules = ["transcribe_audio"]
+py-modules = ["transcribe_audio"]
