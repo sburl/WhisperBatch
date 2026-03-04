@@ -1,5 +1,8 @@
 # WhisperBatch - Initial Understanding and Question Set
 
+**Created:** 2026-03-03-16-56
+**Last Updated:** 2026-03-03-16-56
+
 Date: 2026-03-03
 
 ## 1) What I understand about this repo (so far)
