@@ -241,6 +241,11 @@ def test_process_directory_retries_exhausts_and_marks_failed(tmp_path, monkeypat
     assert summary["failed"] == 1
 
 
+def test_process_directory_rejects_negative_max_retries(tmp_path):
+    with pytest.raises(ValueError, match="max_retries must be >= 0"):
+        transcribe_audio.process_directory(str(tmp_path), max_retries=-1)
+
+
 def test_summary_json_no_retry_trace_when_not_verbose(tmp_path, monkeypatch, capsys):
     (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
     monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
