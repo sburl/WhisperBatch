@@ -6,14 +6,13 @@ from pathlib import Path
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
+    SUPPORTED_OUTPUT_FORMATS,
+    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     render_plain_text,
     render_timestamped_text,
     load_model,
     transcribe_file,
 )
-
-SUPPORTED_OUTPUT_FORMATS = {"txt", "json", "srt", "vtt"}
-TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
 def _build_output_file_path(output_dir: Path, input_path: Path, output_format: str) -> Path:
