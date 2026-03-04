@@ -722,7 +722,7 @@ class TranscriptionApp:
                     
                     # Update text area with completion info
                     self.queue.put(("text", f"\n=== {filename} ===\n"))
-                    self.queue.put(("text", f"Transcription complete!\n"))
+                    self.queue.put(("text", "Transcription complete!\n"))
                     self.queue.put(("text", f"Saved to: {output_file}\n\n"))
                     self.queue.put(("text", f"Metadata: {write_metadata_file}\n"))
                     self.queue.put(("status", f"Saved transcription to: {output_file}"))
@@ -1341,7 +1341,7 @@ class TranscriptionApp:
 
 def main():
     root = tk.Tk()
-    app = TranscriptionApp(root)
+    TranscriptionApp(root)
     root.mainloop()
 
 if __name__ == "__main__":
