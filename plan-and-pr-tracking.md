@@ -1,7 +1,7 @@
 # PR Roadmap and Merge Order
 
 **Created:** 2026-03-04-06-40
-**Last Updated:** 2026-03-04-06-40
+**Last Updated:** 2026-03-03-21-51
 
 ## Current open PR inventory
 
@@ -65,3 +65,67 @@
 6. #9 and #8 — GUI format tests and implementation
 7. #21 and #24 — documentation sync follow-up
 8. #16 and #15 — planning and future architecture context
+
+## Big-feature planning (new work queue)
+
+This queue is split into stages with a minimum of 5 and a maximum of 15 tasks each.
+
+### Stage 1: Stability and foundations
+1. Add deterministic CLI test coverage for `process_directory` success and failure paths.
+2. Add GUI and CLI unit tests around supported media extension handling.
+3. Add tests that validate `transcribe_file` with timestamp on/off and malformed inputs.
+4. Add minimal CI for PR-only tests (lint + unit subset).
+5. Add nightly CI job for longer regression and multi-file scenarios.
+6. Add a dedicated `requirements-dev.txt` with pinned test/dev tools.
+7. Implement a small test fixture generator for fake Whisper models.
+8. Standardize logging output across CLI and GUI worker code paths.
+9. Add consistent `Path` normalization (tilde expansion + absolute path canonicalization).
+10. Define shared constants for model names and valid output formats in core.
+
+### Stage 2: Quality and bug-hardening
+1. Add strict validation for directory arguments and output directory permissions.
+2. Normalize and sort file discovery in CLI/GUI for deterministic execution.
+3. Improve error aggregation so failed files still produce clear run summaries.
+4. Ensure timestamp output is identical across plain/text/GUI rendering.
+5. Add guardrails for missing FFmpeg dependencies with user-friendly errors.
+6. Add per-file timing and aggregate JSON summary output.
+7. Add overwrite policy options (`skip`, `replace`, `timestamped`) for all outputs.
+8. Add cancellation handling for CLI batch runs with resumable state.
+9. Add regression tests for unsupported compute/device combinations.
+10. Add defensive path handling for non-ASCII filenames and symlinks.
+
+### Stage 3: Performance and resilience
+1. Add async worker queue for CLI to match GUI parallel behavior.
+2. Add configurable concurrency limits for batch transcription.
+3. Cache loaded model instances across directory runs where safe.
+4. Add per-output artifact cleanup for partial/interrupted runs.
+5. Add optional transcription resume support from last completed file.
+6. Add lightweight progress heartbeat and ETA smoothing.
+7. Add optional output compression for very large transcription artifacts.
+8. Add model warmup step with progress and fallback messaging.
+9. Add integration tests that mock long-running jobs to validate pause/resume logic.
+10. Add stress-profile fixture and benchmark script for model/runtime matrix.
+
+### Stage 4: Security and operations
+1. Add input-path allowlist/denylist for batch jobs to reduce accidental exfiltration risk.
+2. Add secret scanners in pre-commit and pre-push hooks for changed files.
+3. Add checksum verification for dependency installation manifests.
+4. Add audit logging for model download and local cache writes.
+5. Add least-privilege execution mode for temporary transcriptions.
+6. Add explicit file permission checks before write operations.
+7. Add CI secret-detection gate on all pull requests.
+8. Add package-safety scan on schedule and PR (dependency CVE check).
+9. Introduce pinned runtime version floor policy docs and enforcement.
+10. Add incident-response checklist for corrupted model cache and unsafe filesystem states.
+
+### Stage 5: Product vision
+1. Add post-process plugin discovery and built-in plugin gallery.
+2. Add optional translation and diarization output modes.
+3. Add speaker-segment tagging and export-friendly speaker labels.
+4. Add transcript review mode with inline corrections and re-export.
+5. Add alignment with SRT/VTT timestamp export and styling options.
+6. Add API endpoint mode (small local HTTP service).
+7. Add batch scheduling by filename pattern and date range.
+8. Add configurable profile presets (speed, accuracy, memory).
+9. Add cloud-backed queue mode for long-running transcriptions.
+10. Add first-class support for multi-language batch metadata and QA reporting.
