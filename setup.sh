@@ -46,6 +46,8 @@ pip install --upgrade pip wheel
 
 echo "➡️  Installing Python requirements"
 pip install -r requirements.txt
+echo "➡️  Installing package (console scripts)"
+pip install -e .
 
 # --- Apple-Silicon specific: ensure arm64 wheel of PyTorch --------------------
 if [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
