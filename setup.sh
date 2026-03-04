@@ -50,7 +50,7 @@ PY
   if [[ "$PYTORCH_OK" != "arm64" ]]; then
     echo "↪️  Re-installing native arm64 PyTorch wheel (CPU-only)"
     pip uninstall -y torch || true
-    pip install --no-cache-dir --force-reinstall torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+    pip install --no-cache-dir --force-reinstall torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
   fi
 fi
 
