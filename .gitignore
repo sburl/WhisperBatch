@@ -29,4 +29,7 @@ build/
 *.log
 
 # Local development settings
-.DS_Store 
+.DS_Store
+
+# Generated transcription outputs (kept local)
+transcriptions/

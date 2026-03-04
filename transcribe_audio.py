@@ -875,7 +875,7 @@ def process_directory(
         annotation_export=annotation_export,
     )
     start_time = time.perf_counter()
-    directory = Path(directory_path)
+    directory = Path(directory_path).expanduser()
 
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
@@ -904,10 +904,10 @@ def process_directory(
 
     export_bundle_path = None
     if export_bundle is not None:
-        export_bundle_path = _normalize_export_bundle_path(directory_path, export_bundle)
+        export_bundle_path = _normalize_export_bundle_path(directory, export_bundle)
     annotation_export_path = None
     if annotation_export is not None:
-        annotation_export_path = _normalize_annotation_export_path(directory_path, annotation_export)
+        annotation_export_path = _normalize_annotation_export_path(directory, annotation_export)
     annotation_rows: list[dict] = []
 
     if not supported_files:
