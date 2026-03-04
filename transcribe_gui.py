@@ -6,15 +6,26 @@ import threading
 from pathlib import Path
 import queue
 import os
-import librosa
 import time
+import subprocess
+import json
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
-    format_timestamp as core_format_timestamp,
+    SUPPORTED_OUTPUT_FORMATS,
+    DEFAULT_OUTPUT_FORMAT,
+    DEFAULT_TASK_NAME,
+    DEFAULT_MODEL_NAME,
+    SUPPORTED_MODELS,
+    MODEL_METADATA,
+    get_model_cache_dir,
+    is_model_cached,
+    build_output_metadata_path,
     load_model as core_load_model,
     render_plain_text,
     render_timestamped_text,
+    resolve_output_metadata_path,
+    should_skip_output_due_to_metadata,
     transcribe_segments,
 )
 import platform
@@ -34,7 +45,7 @@ def _check_pytorch_arch():
                 "\n🚫 Detected x86-64 PyTorch wheel running under Rosetta.\n"
                 "Please reinstall the native arm64 wheel:\n\n"
                 "    pip uninstall -y torch\n"
-                "    pip install --no-cache-dir --force-reinstall torch==2.1.0 "
+                "    pip install --no-cache-dir --force-reinstall torch==2.4.1 "
                 "--index-url https://download.pytorch.org/whl/cpu\n\n"
                 "Then run the program again.\n"
             )
@@ -44,6 +55,76 @@ def _check_pytorch_arch():
         pass
 
 _check_pytorch_arch()
+
+TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
+
+
+def _format_timestamp_with_millis(seconds, separator=","):
+    total_milliseconds = int(round(float(seconds) * 1000))
+    hours = total_milliseconds // 3600000
+    minutes = (total_milliseconds % 3600000) // 60000
+    secs = ((total_milliseconds % 60000) // 1000)
+    millis = total_milliseconds % 1000
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}{separator}{millis:03d}"
+
+
+def _render_srt(segments):
+    lines = []
+    for index, segment in enumerate(segments, start=1):
+        lines.append(str(index))
+        lines.append(
+            f"{_format_timestamp_with_millis(segment.start, ',')} --> "
+            f"{_format_timestamp_with_millis(segment.end, ',')}"
+        )
+        lines.append((segment.text or "").strip())
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _render_vtt(segments):
+    lines = ["WEBVTT", ""]
+    for segment in segments:
+        lines.append(
+            f"{_format_timestamp_with_millis(segment.start, '.')} --> "
+            f"{_format_timestamp_with_millis(segment.end, '.')}"
+        )
+        lines.append((segment.text or "").strip())
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _result_to_json_payload(segments):
+    return {
+        "text": " ".join((segment.text or "").strip() for segment in segments).strip(),
+        "segments": [
+            {
+                "start": float(segment.start),
+                "end": float(segment.end),
+                "text": (segment.text or "").strip(),
+            }
+            for segment in segments
+        ],
+    }
+
+
+def _effective_include_timestamps_for_output(output_format: str, include_timestamps: bool):
+    if output_format in TIMESTAMP_ONLY_OUTPUT_FORMATS:
+        return False
+    return bool(include_timestamps)
+
+
+def _render_output_text(segments, output_format: str, include_timestamps: bool) -> str:
+    if output_format == DEFAULT_OUTPUT_FORMAT:
+        if include_timestamps:
+            return render_timestamped_text(segments)
+        return render_plain_text(segments)
+    if output_format == "json":
+        return json.dumps(_result_to_json_payload(segments), ensure_ascii=False, indent=2)
+    if output_format == "srt":
+        return _render_srt(segments)
+    if output_format == "vtt":
+        return _render_vtt(segments)
+    raise ValueError(f"Unsupported output format '{output_format}'.")
 
 class TranscriptionApp:
     def __init__(self, root):
@@ -65,35 +146,12 @@ class TranscriptionApp:
         self.progress_lock = threading.Lock()
         self.total_tasks = 0
         self.completed_tasks = 0
+        self.failed_tasks = 0
         
         # Time tracking
         self.start_time = None
         self.total_elapsed_seconds = 0
         self.pause_start_time = None
-        self.processing_completed = False
-        self.transcribe_start_time = None
-        self.transcribe_filename = None
-        self.transcribe_timer_id = None
-        
-        # Base model speeds for time estimation (CPU float32 baseline)
-        self.base_model_speeds = {
-            "tiny": 2.5,      # ~2.5x real-time
-            "base": 2.0,      # ~2x real-time
-            "small": 1.5,     # ~1.5x real-time
-            "medium": 1.0,    # ~1x real-time
-            "large-v3": 0.6   # ~0.6x real-time
-        }
-        self.model_speeds = dict(self.base_model_speeds)
-        # On Apple-silicon with int8 inference the effective speed is much faster.
-        import platform
-        if platform.system() == "Darwin" and platform.machine() == "arm64":
-            self.model_speeds = {
-                "tiny": 15.0,
-                "base": 10.0,
-                "small": 6.0,
-                "medium": 4.0,
-                "large-v3": 2.0,
-            }
         
         # Create main frame
         self.main_frame = ttk.Frame(root, padding="10")
@@ -112,11 +170,17 @@ class TranscriptionApp:
         
         # Model selection
         ttk.Label(self.options_frame, text="Model:").grid(row=0, column=0, padx=5)
-        self.model_var = tk.StringVar(value="base")
+        self.model_var = tk.StringVar(
+            value=(
+                DEFAULT_MODEL_NAME
+                if DEFAULT_MODEL_NAME in SUPPORTED_MODELS
+                else SUPPORTED_MODELS[-1] if SUPPORTED_MODELS else DEFAULT_MODEL_NAME
+            )
+        )
         self.model_combo = ttk.Combobox(
             self.options_frame,
             textvariable=self.model_var,
-            values=["tiny", "base", "small", "medium", "large-v3"],
+            values=SUPPORTED_MODELS,
             state="readonly",
             width=10
         )
@@ -124,13 +188,27 @@ class TranscriptionApp:
         self.model_combo.bind('<<ComboboxSelected>>', self.on_model_change)
         
         # Default timestamps checkbox
-        self.timestamps_var = tk.BooleanVar(value=False)
+        self.timestamps_var = tk.BooleanVar(value=True)
         self.timestamps_check = ttk.Checkbutton(
             self.options_frame,
             text="Default Timestamps",
             variable=self.timestamps_var
         )
         self.timestamps_check.grid(row=0, column=2, padx=5)
+        self.overwrite_var = tk.BooleanVar(value=False)
+        self.overwrite_check = ttk.Checkbutton(
+            self.options_frame,
+            text="Overwrite outputs",
+            variable=self.overwrite_var,
+        )
+        self.overwrite_check.grid(row=0, column=3, padx=5)
+        self.resume_var = tk.BooleanVar(value=False)
+        self.resume_check = ttk.Checkbutton(
+            self.options_frame,
+            text="Resume completed files",
+            variable=self.resume_var,
+        )
+        self.resume_check.grid(row=0, column=4, padx=5)
 
         # Device selection
         ttk.Label(self.options_frame, text="Device:").grid(row=1, column=0, padx=5, pady=(5, 0))
@@ -170,7 +248,18 @@ class TranscriptionApp:
         self.compute_combo.grid(row=1, column=3, padx=5, pady=(5, 0), sticky=tk.W)
         self.compute_combo.bind('<<ComboboxSelected>>', self.on_compute_change)
         self.refresh_compute_options()
-        self.update_speed_factors()
+
+        # Output format selection
+        ttk.Label(self.options_frame, text="Output:").grid(row=2, column=0, padx=5, pady=(5, 0))
+        self.output_format_var = tk.StringVar(value=DEFAULT_OUTPUT_FORMAT)
+        self.output_format_combo = ttk.Combobox(
+            self.options_frame,
+            textvariable=self.output_format_var,
+            values=sorted(SUPPORTED_OUTPUT_FORMATS),
+            state="readonly",
+            width=8,
+        )
+        self.output_format_combo.grid(row=2, column=1, padx=5, pady=(5, 0), sticky=tk.W)
         
         # File selection button
         self.select_button = ttk.Button(
@@ -178,7 +267,13 @@ class TranscriptionApp:
             text="Add Media Files",
             command=self.select_files
         )
-        self.select_button.grid(row=1, column=0, pady=5)
+        self.select_button.grid(row=1, column=0, pady=5, sticky=tk.W)
+        self.select_folder_button = ttk.Button(
+            self.left_frame,
+            text="Add Folder",
+            command=self.select_folder
+        )
+        self.select_folder_button.grid(row=1, column=1, pady=5, padx=(8, 0), sticky=tk.W)
         
         # File list frame
         self.file_list_frame = ttk.LabelFrame(self.left_frame, text="Files to Process", padding="5")
@@ -214,11 +309,6 @@ class TranscriptionApp:
         )
         self.file_list_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.file_list.configure(yscrollcommand=self.file_list_scrollbar.set)
-        
-        # Time label removed per user request
-        self.total_time_label = ttk.Label(self.file_list_frame, text="")
-        self.total_time_label.grid(row=2, column=0, columnspan=2, pady=5)
-        self.total_time_label.grid_remove()
         
         # File list buttons frame
         self.file_buttons_frame = ttk.Frame(self.file_list_frame)
@@ -287,41 +377,11 @@ class TranscriptionApp:
         )
         self.text_area.grid(row=0, column=0, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Model download progress frame
-        self.model_progress_frame = ttk.LabelFrame(self.right_frame, text="Model Download Progress", padding="5")
-        self.model_progress_frame.grid(row=1, column=0, pady=5, sticky=(tk.W, tk.E))
-        self.model_progress_frame.grid_remove()
-        
-        # Model download progress bar
-        self.model_progress = ttk.Progressbar(
-            self.model_progress_frame,
-            orient=tk.HORIZONTAL,
-            length=300,
-            mode='determinate'
-        )
-        self.model_progress.grid(row=0, column=0, padx=(0, 10), sticky=(tk.W, tk.E))
-        
-        # Model progress label
-        self.model_progress_label = ttk.Label(self.model_progress_frame, text="")
-        self.model_progress_label.grid(row=0, column=1)
-        
-        # Hidden progress bar (kept for internal state updates)
-        self.progress_frame = ttk.Frame(self.right_frame)
-        self.progress_frame.grid(row=2, column=0, pady=5, sticky=(tk.W, tk.E))
-        self.progress_frame.grid_remove()
-        self.progress = ttk.Progressbar(
-            self.progress_frame,
-            orient=tk.HORIZONTAL,
-            length=300,
-            mode='determinate'
-        )
-        self.progress.grid(row=0, column=0, padx=(0, 10), sticky=(tk.W, tk.E))
-        self.progress_label = ttk.Label(self.progress_frame, text="0%")
-        self.progress_label.grid(row=0, column=1)
-        
         # Status label
         self.status_label = ttk.Label(self.right_frame, text="Ready")
-        self.status_label.grid(row=3, column=0, pady=5)
+        self.status_label.grid(row=1, column=0, pady=5)
+        self.metrics_label = ttk.Label(self.right_frame, text="Progress: 0/0 files, failed: 0")
+        self.metrics_label.grid(row=2, column=0, pady=(0, 5))
         
         # Configure grid
         self.root.columnconfigure(0, weight=1)
@@ -333,8 +393,6 @@ class TranscriptionApp:
         self.right_frame.columnconfigure(0, weight=1)
         self.right_frame.rowconfigure(0, weight=1)
         self.options_frame.columnconfigure(3, weight=1)
-        self.progress_frame.columnconfigure(0, weight=1)
-        self.model_progress_frame.columnconfigure(0, weight=1)
         self.file_list_frame.columnconfigure(0, weight=1)
         self.file_list_frame.rowconfigure(0, weight=1)
         
@@ -345,14 +403,12 @@ class TranscriptionApp:
         self.show_model_info()
 
     def reset_progress_tracking(self):
-        """Reset counters and progress UI"""
+        """Reset queue counters"""
         with self.progress_lock:
             self.total_tasks = 0
             self.completed_tasks = 0
-        if hasattr(self, 'progress'):
-            self.progress["value"] = 0
-        if hasattr(self, 'progress_label'):
-            self.progress_label["text"] = "0%"
+            self.failed_tasks = 0
+        self.metrics_label["text"] = "Progress: 0/0 files, failed: 0"
 
     def enqueue_task_from_values(self, item_id, values):
         """Push a pending file into the worker queue"""
@@ -365,17 +421,16 @@ class TranscriptionApp:
         file_path = os.path.abspath(file_path)
         with self.progress_lock:
             self.total_tasks += 1
-            total = self.total_tasks
-            completed = self.completed_tasks
-        percent = int((completed / total) * 100) if total else 0
         self.task_queue.put({
             "item_id": item_id,
             "filename": filename,
             "include_timestamps": include_timestamps,
             "file_path": file_path,
-            "file_model": file_model
+            "file_model": file_model,
+            "output_format": self.output_format_var.get(),
+            "overwrite": self.overwrite_var.get(),
+            "resume": self.resume_var.get(),
         })
-        self.queue.put(("progress", percent))
 
     def remove_selected_file(self):
         """Remove selected file from the queue"""
@@ -408,6 +463,7 @@ class TranscriptionApp:
             self.is_paused = False
             self.start_time = time.time()
             self.select_button.configure(state=tk.DISABLED)
+            self.select_folder_button.configure(state=tk.DISABLED)
             self.queue.put(("status", "Resuming..."))
             self.queue.put(("text", "\nResuming processing...\n"))
             return
@@ -421,7 +477,6 @@ class TranscriptionApp:
         self.is_paused = False
         self.total_elapsed_seconds = 0
         self.pause_start_time = None
-        self.processing_completed = False
         self.start_time = time.time()
         self.reset_progress_tracking()
         # Recreate the task queue for this run
@@ -429,7 +484,6 @@ class TranscriptionApp:
         self.worker_initial_model = self.model_var.get()
         self.worker_device = self.get_selected_device()
         self.worker_compute_type = self.get_selected_compute_type()
-        self.worker_model_speeds = dict(self.model_speeds)
         
         # Snapshot pending files on the main thread and enqueue them
         for item_id in self.file_list.get_children():
@@ -440,6 +494,13 @@ class TranscriptionApp:
             self.queue.put(("status", "No pending files to process"))
             self.is_processing = False
             self.start_btn.configure(state=tk.NORMAL)
+            self.pause_btn.configure(state=tk.DISABLED)
+            self.stop_btn.configure(state=tk.DISABLED)
+            self.select_button.configure(state=tk.NORMAL)
+            self.select_folder_button.configure(state=tk.NORMAL)
+            self.device_combo.configure(state="readonly")
+            self.compute_combo.configure(state="readonly")
+            self.output_format_combo.configure(state="readonly")
             return
         
         # Update button states
@@ -447,8 +508,10 @@ class TranscriptionApp:
         self.pause_btn.configure(state=tk.NORMAL)
         self.stop_btn.configure(state=tk.NORMAL)
         self.select_button.configure(state=tk.DISABLED)
+        self.select_folder_button.configure(state=tk.DISABLED)
         self.device_combo.configure(state=tk.DISABLED)
         self.compute_combo.configure(state=tk.DISABLED)
+        self.output_format_combo.configure(state=tk.DISABLED)
         
         # Start the elapsed time updates
         self.update_remaining_time()
@@ -470,6 +533,7 @@ class TranscriptionApp:
                 self.pause_start_time = time.time()
             # Enable file selection when paused
             self.select_button.configure(state=tk.NORMAL)
+            self.select_folder_button.configure(state=tk.NORMAL)
             self.queue.put(("status", "Paused - You can add more files"))
             self.queue.put(("text", "\nProcessing paused. You can add more files or click 'Resume' to continue.\n"))
         else:
@@ -480,6 +544,7 @@ class TranscriptionApp:
             self.start_time = time.time()
             # Disable file selection when resuming
             self.select_button.configure(state=tk.DISABLED)
+            self.select_folder_button.configure(state=tk.DISABLED)
             self.queue.put(("status", "Resuming..."))
             self.queue.put(("text", "\nResuming processing...\n"))
 
@@ -491,7 +556,6 @@ class TranscriptionApp:
         self.start_time = None
         self.total_elapsed_seconds = 0
         self.pause_start_time = None
-        self.processing_completed = False
         self.elapsed_time_label["text"] = "Elapsed: 0s"
         
         # Update button states
@@ -499,11 +563,10 @@ class TranscriptionApp:
         self.pause_btn.configure(state=tk.DISABLED)
         self.stop_btn.configure(state=tk.DISABLED)
         self.select_button.configure(state=tk.NORMAL)
+        self.select_folder_button.configure(state=tk.NORMAL)
         self.device_combo.configure(state="readonly")
         self.compute_combo.configure(state="readonly")
-        
-        # Reset time display
-        self.update_total_time_estimate()
+        self.output_format_combo.configure(state="readonly")
         
         self.queue.put(("status", "Processing stopped"))
 
@@ -549,9 +612,13 @@ class TranscriptionApp:
                 include_timestamps = task["include_timestamps"]
                 file_path = task["file_path"]
                 file_model = task["file_model"]
+                overwrite_output = task["overwrite"]
+                resume_output = task["resume"]
+                output_format = task["output_format"]
                 
                 # Update file status
                 self.queue.put(("file_status", (item_id, "Processing")))
+                success = False
                 
                 # Update status/progress text
                 self.queue.put(("status", f"Processing: {filename}"))
@@ -563,15 +630,10 @@ class TranscriptionApp:
                         raise FileNotFoundError(f"File is not accessible: {filename}")
                     
                     # Get audio duration using ffprobe
-                    import subprocess
-                    cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file_path]
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                    if result.returncode != 0:
-                        raise ValueError(f"Invalid audio file: {filename}")
-                    duration = float(result.stdout.strip())
-                    
-                    if duration <= 0:
-                        raise ValueError(f"Invalid duration for {filename}")
+                    try:
+                        duration = self.get_audio_duration_seconds(file_path)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid audio file: {filename}") from e
                         
                     total_minutes = int(duration / 60)
                     self.queue.put(("text", f"Audio length: {total_minutes} minutes\n"))
@@ -591,36 +653,83 @@ class TranscriptionApp:
                         )
                         current_model_name = file_model
 
-                    # Start tracking elapsed time
-                    transcribe_start = time.time()
-                    self.queue.put(("transcribe_start", (filename, transcribe_start)))
-
                     # Transcribe file
-                    segments, _info = transcribe_segments(model, file_path, task="transcribe")
+                    segments, _info = transcribe_segments(model, file_path, task=DEFAULT_TASK_NAME)
 
-                    # Stop tracking elapsed time
-                    self.queue.put(("transcribe_end", None))
-                    
-                    # After transcription, format with timestamps if needed
-                    if include_timestamps:
-                        transcription = render_timestamped_text(segments)
-                    else:
-                        transcription = render_plain_text(segments)
+                    transcribe_file_include_timestamps = _effective_include_timestamps_for_output(
+                        output_format=output_format,
+                        include_timestamps=include_timestamps,
+                    )
+                    transcription = _render_output_text(
+                        segments,
+                        output_format=output_format,
+                        include_timestamps=transcribe_file_include_timestamps,
+                    )
                     
                     # Save to file in the same directory as the source file
-                    output_file = Path(file_path).parent / f"{Path(file_path).stem}_transcription.txt"
-                    
+                    output_file = Path(file_path).parent / f"{Path(file_path).stem}_transcription.{output_format}"
+
+                    metadata_file = resolve_output_metadata_path(output_file)
+                    write_metadata_file = build_output_metadata_path(output_file)
+                    resume_skip = False
+                    if output_file.exists() and resume_output:
+                        resume_skip = should_skip_output_due_to_metadata(
+                            source_path=file_path,
+                            output_path=output_file,
+                            metadata_path=metadata_file,
+                            model_name=file_model,
+                            include_timestamps=transcribe_file_include_timestamps,
+                            output_format=output_format,
+                            task=DEFAULT_TASK_NAME,
+                        )
+
+                    if output_file.exists() and not overwrite_output and resume_skip:
+                        self.queue.put(("text", f"\n=== {filename} ===\n"))
+                        self.queue.put(("text", f"Resume: skipping completed output file: {output_file}\n\n"))
+                        self.queue.put(("status", f"Skipped existing file: {output_file}"))
+                        self.queue.put(("file_status", (item_id, "Skipped")))
+                        success = True
+                        continue
+
+                    if output_file.exists() and not overwrite_output and not resume_output:
+                        self.queue.put(("text", f"\n=== {filename} ===\n"))
+                        self.queue.put(("text", f"Skipping existing output file: {output_file}\n\n"))
+                        self.queue.put(("status", f"Skipped existing file: {output_file}"))
+                        self.queue.put(("file_status", (item_id, "Skipped")))
+                        success = True
+                        continue
+
                     with open(output_file, "w", encoding="utf-8") as f:
                         f.write(transcription)
+
+                    metadata = {
+                        "source_path": str(file_path),
+                        "output_path": str(output_file),
+                        "model": file_model,
+                        "include_timestamps": transcribe_file_include_timestamps,
+                        "output_format": output_format,
+                        "task": DEFAULT_TASK_NAME,
+                        "language": None,
+                        "overwrite": overwrite_output,
+                        "duration_seconds": duration,
+                        "created_at": time.time(),
+                    }
+                    try:
+                        with open(write_metadata_file, "w", encoding="utf-8") as f:
+                            json.dump(metadata, f, indent=2)
+                    except Exception as metadata_error:
+                        self.queue.put(("text", f"\nWarning: could not save metadata for {filename}: {metadata_error}\n\n"))
                     
                     # Update text area with completion info
                     self.queue.put(("text", f"\n=== {filename} ===\n"))
                     self.queue.put(("text", f"Transcription complete!\n"))
                     self.queue.put(("text", f"Saved to: {output_file}\n\n"))
+                    self.queue.put(("text", f"Metadata: {write_metadata_file}\n"))
                     self.queue.put(("status", f"Saved transcription to: {output_file}"))
                     
                     # Update file status
                     self.queue.put(("file_status", (item_id, "Complete")))
+                    success = True
                     
                 except Exception as e:
                     error_msg = f"Error processing {filename}: {str(e)}"
@@ -631,10 +740,16 @@ class TranscriptionApp:
                 finally:
                     with self.progress_lock:
                         self.completed_tasks += 1
-                        total = self.total_tasks
-                        completed = self.completed_tasks
-                    percent = int((completed / total) * 100) if total else 0
-                    self.queue.put(("progress", percent))
+                        if not success:
+                            self.failed_tasks += 1
+                        self.queue.put((
+                            "metrics",
+                            {
+                                "completed_tasks": self.completed_tasks,
+                                "total_tasks": self.total_tasks,
+                                "failed_tasks": self.failed_tasks,
+                            },
+                        ))
                 
                 # Check for stop or pause after each file
                 if self.should_stop:
@@ -656,11 +771,12 @@ class TranscriptionApp:
             self.queue.put(("button_state", ("pause", tk.DISABLED)))
             self.queue.put(("button_state", ("stop", tk.DISABLED)))
             self.queue.put(("button_state", ("select", tk.NORMAL)))
-            self.queue.put(("device_state", ("readonly", "readonly")))
+            self.queue.put(("button_state", ("select_folder", tk.NORMAL)))
+            self.queue.put(("device_state", ("readonly", "readonly", "readonly")))
             self.queue.put(("processing_complete", None))
 
     def select_files(self):
-        """Open file dialog to select audio files"""
+        """Open file dialog to select audio files."""
         try:
             # Check if we're processing and not paused
             if self.is_processing and not self.is_paused:
@@ -674,7 +790,7 @@ class TranscriptionApp:
                 ("Audio/Video files", _ext_glob),
                 ("All files", "*.*")
             )
-            
+
             try:
                 files = filedialog.askopenfilenames(
                     title="Select audio files",
@@ -684,114 +800,12 @@ class TranscriptionApp:
                 self.queue.put(("text", f"\nError opening file dialog: {str(e)}\n"))
                 self.queue.put(("status", "Error selecting files"))
                 return
-            
+
             if not files:  # User cancelled or no files selected
                 return
-            
-            # Only clear text area if not processing
-            if not self.is_processing:
-                self.text_area.delete(1.0, tk.END)
-            
-            # Add files to list
-            for file_path in files:
-                try:
-                    # Convert to absolute path
-                    file_path = os.path.abspath(file_path)
-                    filename = os.path.basename(file_path)
-                    
-                    # Check if file is accessible
-                    if not self.is_local_file(file_path):
-                        self.queue.put(("text", f"\nWarning: Cannot access file: {filename}\n"))
-                        if "iCloud Drive" in file_path:
-                            self.queue.put(("text", "This file is in iCloud Drive and needs to be downloaded first.\n"))
-                            self.queue.put(("text", "Please download it from iCloud Drive before trying again.\n\n"))
-                        else:
-                            self.queue.put(("text", "Please make sure the file exists and you have permission to access it.\n\n"))
-                        
-                        # Add file to list with "Not Accessible" status
-                        self.file_list.insert("", tk.END, values=(
-                            filename,  # Display name
-                            "Not Accessible",  # Status
-                            "Yes" if self.timestamps_var.get() else "No",  # Timestamps
-                            self.model_var.get(),  # Model
-                            file_path  # Full path (hidden)
-                        ))
-                        continue
-                    
-                    # Try to get duration to verify file is valid
-                    try:
-                        # Use a more efficient method to get duration with timeout
-                        import subprocess
-                        cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file_path]
-                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)  # 5 second timeout
-                        
-                        if result.returncode != 0:
-                            raise ValueError("Invalid audio file")
-                            
-                        duration = float(result.stdout.strip())
-                        
-                        if duration <= 0:
-                            raise ValueError("Invalid duration")
-                            
-                    except (subprocess.TimeoutExpired, ValueError, subprocess.CalledProcessError) as e:
-                        self.queue.put(("text", f"\nWarning: Invalid audio file: {filename}\n"))
-                        self.queue.put(("text", "This file appears to be corrupted or is not a valid audio file.\n\n"))
-                        
-                        # Add file to list with "Invalid" status
-                        self.file_list.insert("", tk.END, values=(
-                            filename,  # Display name
-                            "Invalid",  # Status
-                            "Yes" if self.timestamps_var.get() else "No",  # Timestamps
-                            self.model_var.get(),  # Model
-                            file_path  # Full path (hidden)
-                        ))
-                        continue
-                    except Exception as e:
-                        self.queue.put(("text", f"\nWarning: Could not process {filename}: {str(e)}\n"))
-                        self.queue.put(("text", "This file may be corrupted or in an unsupported format.\n\n"))
-                        
-                        # Add file to list with "Error" status
-                        self.file_list.insert("", tk.END, values=(
-                            filename,  # Display name
-                            "Error",  # Status
-                            "Yes" if self.timestamps_var.get() else "No",  # Timestamps
-                            self.model_var.get(),  # Model
-                            file_path  # Full path (hidden)
-                        ))
-                        continue
-                    
-                    # Add file to list with full path
-                    item_id = self.file_list.insert("", tk.END, values=(
-                        filename,  # Display name
-                        "Pending",  # Status
-                        "Yes" if self.timestamps_var.get() else "No",  # Timestamps
-                        self.model_var.get(),  # Model
-                        file_path  # Full path (hidden)
-                    ))
-                    
-                    # If we're paused mid-run, enqueue the new task so it processes after resume
-                    if self.is_processing and self.is_paused:
-                        self.enqueue_task_from_values(item_id, self.file_list.item(item_id)["values"])
-                    
-                except Exception as e:
-                    self.queue.put(("text", f"\nError adding file {file_path}: {str(e)}\n"))
-                    continue
-            
-            # Reset progress if not processing
-            if not self.is_processing and hasattr(self, 'progress'):
-                self.progress["value"] = 0
-                if hasattr(self, 'progress_label'):
-                    self.progress_label["text"] = "0%"
-            
-            # Show model info only if not processing
-            if not self.is_processing:
-                self.show_model_info()
-            
-            # If we're paused, remind user to resume
-            if self.is_paused:
-                self.queue.put(("text", "\nFiles added successfully. Click 'Resume' to continue processing.\n"))
-                self.queue.put(("status", "Files added. Click 'Resume' to continue"))
-                
+
+            self._add_files(sorted(files, key=lambda path: self._file_sort_key(path)))
+
         except Exception as e:
             self.queue.put(("text", f"\nUnexpected error during file selection: {str(e)}\n"))
             self.queue.put(("status", "Error selecting files"))
@@ -799,21 +813,139 @@ class TranscriptionApp:
             self.is_processing = False
             self.is_paused = False
             self.start_time = None
-            if hasattr(self, 'progress'):
-                self.progress["value"] = 0
-            if hasattr(self, 'progress_label'):
-                self.progress_label["text"] = "0%"
             self.start_btn.configure(state=tk.NORMAL)
             self.pause_btn.configure(state=tk.DISABLED)
             self.stop_btn.configure(state=tk.DISABLED)
             self.select_button.configure(state=tk.NORMAL)
+            self.select_folder_button.configure(state=tk.NORMAL)
 
-    def update_transcribe_elapsed_time(self):
-        """Update the status display during transcription (elapsed time removed per user request)"""
-        if self.transcribe_start_time and self.transcribe_filename:
-            self.status_label["text"] = f"Transcribing {self.transcribe_filename}..."
-            # Schedule next update
-            self.transcribe_timer_id = self.root.after(1000, self.update_transcribe_elapsed_time)
+    def select_folder(self):
+        """Open folder picker and add all supported media files."""
+        try:
+            # Check if we're processing and not paused
+            if self.is_processing and not self.is_paused:
+                self.queue.put(("text", "\nCannot add files while processing is active.\n"))
+                self.queue.put(("text", "Please click 'Pause' first to add more files.\n\n"))
+                self.queue.put(("status", "Click 'Pause' to add more files"))
+                return
+
+            folder = filedialog.askdirectory(title="Select folder containing audio/video files")
+            if not folder:
+                return
+
+            files = self._collect_supported_files_in_directory(folder)
+            if not files:
+                self.queue.put(("text", f"\nNo supported files found in: {folder}\n"))
+                self.queue.put(("status", "No supported media files found"))
+                return
+
+            self._add_files(sorted(files, key=lambda path: self._file_sort_key(path)))
+
+        except Exception as e:
+            self.queue.put(("text", f"\nError adding folder: {str(e)}\n"))
+            self.queue.put(("status", "Error adding folder"))
+
+    def _collect_supported_files_in_directory(self, folder_path):
+        """Return absolute paths for supported files in a folder (recursive)."""
+        folder = Path(folder_path)
+        if not folder.is_dir():
+            return []
+
+        supported_files = []
+        for current, _dirs, filenames in os.walk(folder):
+            for filename in sorted(filenames):
+                candidate = Path(current) / filename
+                try:
+                    is_file = candidate.is_file()
+                except OSError:
+                    is_file = False
+
+                if is_file and candidate.suffix.lower() in SUPPORTED_EXTENSIONS:
+                    supported_files.append(os.path.abspath(candidate))
+
+        supported_files.sort(key=self._file_sort_key)
+        return supported_files
+
+    @staticmethod
+    def _file_sort_key(path):
+        abs_path = os.path.abspath(path)
+        return abs_path.lower(), abs_path
+
+    def _is_already_in_queue(self, file_path):
+        normalized = os.path.abspath(file_path)
+        for item_id in self.file_list.get_children():
+            values = self.file_list.item(item_id)["values"]
+            if len(values) >= 5 and os.path.abspath(values[4]) == normalized:
+                return item_id
+        return None
+
+    def _add_files(self, files):
+        """Validate and add file paths to the queue."""
+        # Only clear text area if not processing
+        if not self.is_processing:
+            self.text_area.delete(1.0, tk.END)
+
+        # Add files to list
+        for file_path in files:
+            try:
+                # Convert to absolute path
+                file_path = os.path.abspath(file_path)
+                filename = os.path.basename(file_path)
+
+                if self._is_already_in_queue(file_path):
+                    self.queue.put(("text", f"\nSkipped duplicate file: {filename}\n"))
+                    continue
+
+                # Check if file is accessible
+                if not self.is_local_file(file_path):
+                    self.queue.put(("text", f"\nWarning: Cannot access file: {filename}\n"))
+                    if "iCloud Drive" in file_path:
+                        self.queue.put(("text", "This file is in iCloud Drive and needs to be downloaded first.\n"))
+                        self.queue.put(("text", "Please download it from iCloud Drive before trying again.\n\n"))
+                    else:
+                        self.queue.put(("text", "Please make sure the file exists and you have permission to access it.\n\n"))
+
+                    # Add file to list with "Not Accessible" status
+                    self._insert_file_row(filename, "Not Accessible", file_path)
+                    continue
+
+                # Try to get duration to verify file is valid
+                try:
+                    self.get_audio_duration_seconds(file_path)
+                except (subprocess.TimeoutExpired, ValueError):
+                    self.queue.put(("text", f"\nWarning: Invalid audio file: {filename}\n"))
+                    self.queue.put(("text", "This file appears to be corrupted or is not a valid audio file.\n\n"))
+
+                    # Add file to list with "Invalid" status
+                    self._insert_file_row(filename, "Invalid", file_path)
+                    continue
+                except Exception as e:
+                    self.queue.put(("text", f"\nWarning: Could not process {filename}: {str(e)}\n"))
+                    self.queue.put(("text", "This file may be corrupted or in an unsupported format.\n\n"))
+
+                    # Add file to list with "Error" status
+                    self._insert_file_row(filename, "Error", file_path)
+                    continue
+
+                # Add file to list with full path
+                item_id = self._insert_file_row(filename, "Pending", file_path)
+
+                # If we're paused mid-run, enqueue the new task so it processes after resume
+                if self.is_processing and self.is_paused:
+                    self.enqueue_task_from_values(item_id, self.file_list.item(item_id)["values"])
+
+            except Exception as e:
+                self.queue.put(("text", f"\nError adding file {file_path}: {str(e)}\n"))
+                continue
+
+        # Show model info only if not processing
+        if not self.is_processing:
+            self.show_model_info()
+
+        # If we're paused, remind user to resume
+        if self.is_paused:
+            self.queue.put(("text", "\nFiles added successfully. Click 'Resume' to continue processing.\n"))
+            self.queue.put(("status", "Files added. Click 'Resume' to continue"))
 
     def check_queue(self):
         """Check the queue for updates"""
@@ -824,31 +956,8 @@ class TranscriptionApp:
                 if msg_type == "text":
                     self.text_area.insert(tk.END, msg_data)
                     self.text_area.see(tk.END)
-                elif msg_type == "progress":
-                    self.progress["value"] = msg_data
-                    self.progress_label["text"] = f"{int(msg_data)}%"
-                elif msg_type == "model_progress":
-                    self.model_progress["value"] = msg_data
-                elif msg_type == "model_progress_label":
-                    self.model_progress_label["text"] = msg_data
                 elif msg_type == "status":
                     self.status_label["text"] = msg_data
-                elif msg_type == "transcribe_start":
-                    filename, start_time = msg_data
-                    self.transcribe_filename = filename
-                    self.transcribe_start_time = start_time
-                    # Cancel any existing timer
-                    if self.transcribe_timer_id:
-                        self.root.after_cancel(self.transcribe_timer_id)
-                    # Start the elapsed time updates
-                    self.update_transcribe_elapsed_time()
-                elif msg_type == "transcribe_end":
-                    # Cancel the elapsed time timer
-                    if self.transcribe_timer_id:
-                        self.root.after_cancel(self.transcribe_timer_id)
-                        self.transcribe_timer_id = None
-                    self.transcribe_start_time = None
-                    self.transcribe_filename = None
                 elif msg_type == "file_status":
                     item_id, status = msg_data
                     if not self.file_list.exists(item_id):
@@ -857,11 +966,6 @@ class TranscriptionApp:
                     values = list(self.file_list.item(item)["values"])
                     values[1] = status
                     self.file_list.item(item, values=values)
-                elif msg_type == "show_model_progress":
-                    if msg_data:
-                        self.model_progress_frame.grid()
-                    else:
-                        self.model_progress_frame.grid_remove()
                 elif msg_type == "button_state":
                     button, state = msg_data
                     if button == "start":
@@ -872,14 +976,31 @@ class TranscriptionApp:
                         self.stop_btn.configure(state=state)
                     elif button == "select":
                         self.select_button.configure(state=state)
+                    elif button == "select_folder":
+                        self.select_folder_button.configure(state=state)
                 elif msg_type == "device_state":
-                    device_state, compute_state = msg_data
+                    device_state, compute_state, output_format_state = msg_data
                     self.device_combo.configure(state=device_state)
                     self.compute_combo.configure(state=compute_state)
+                    self.output_format_combo.configure(state=output_format_state)
                 elif msg_type == "processing_complete":
-                    # Processing completed naturally - show "Done!"
-                    self.processing_completed = True
                     self.elapsed_time_label["text"] = "Done!"
+                elif msg_type == "metrics":
+                    completed_tasks = msg_data["completed_tasks"]
+                    total_tasks = msg_data["total_tasks"]
+                    failed_tasks = msg_data["failed_tasks"]
+                    if self.start_time:
+                        if self.is_paused and self.pause_start_time:
+                            elapsed = self.total_elapsed_seconds
+                        else:
+                            elapsed = int(time.time() - self.start_time) + self.total_elapsed_seconds
+                    else:
+                        elapsed = self.total_elapsed_seconds
+                    throughput = round(completed_tasks / max(elapsed, 1), 3)
+                    self.metrics_label["text"] = (
+                        f"Progress: {completed_tasks}/{total_tasks} files, "
+                        f"failed: {failed_tasks}, throughput: {throughput} files/sec"
+                    )
 
                 self.queue.task_done()
         except queue.Empty:
@@ -892,29 +1013,21 @@ class TranscriptionApp:
         """Update model info when model selection changes"""
         # Only update the status bar
         model_name = self.model_var.get()
-        model_sizes = {
-            "tiny": "~75MB download, ~1GB in memory",
-            "base": "~142MB download, ~1GB in memory",
-            "small": "~466MB download, ~2GB in memory",
-            "medium": "~1.5GB download, ~5GB in memory",
-            "large-v3": "~3GB download, ~10GB in memory"
-        }
+        model_size = MODEL_METADATA[model_name]["size"]
         device_label = self.device_var.get()
         compute_label = self.compute_var.get()
         self.status_label["text"] = (
-            f"Selected model: {model_name} ({model_sizes[model_name]}), "
+            f"Selected model: {model_name} ({model_size}), "
             f"{device_label}, {compute_label}"
         )
 
     def on_device_change(self, event=None):
-        """Update compute options and time estimates when device changes"""
+        """Update compute options when device changes"""
         self.refresh_compute_options()
-        self.update_speed_factors()
         self.show_model_info()
 
     def on_compute_change(self, event=None):
-        """Update time estimates when compute type changes"""
-        self.update_speed_factors()
+        """Update status when compute type changes"""
         self.show_model_info()
 
     def refresh_compute_options(self):
@@ -939,66 +1052,17 @@ class TranscriptionApp:
         if current not in compute_choices:
             self.compute_var.set("Auto (recommended)")
 
-    def update_speed_factors(self):
-        """Update model speed estimates based on device/compute selection"""
-        device = self.get_selected_device()
-        compute_type = self.get_selected_compute_type()
-
-        device_multiplier = {
-            "cpu": 1.0,
-            "cuda": 3.5,
-            "auto": 1.0
-        }.get(device, 1.0)
-
-        if device == "cuda":
-            compute_multiplier = {
-                None: 1.0,
-                "float16": 1.2,
-                "int8_float16": 1.1,
-                "int8": 0.9,
-                "float32": 0.85
-            }.get(compute_type, 1.0)
-        else:
-            compute_multiplier = {
-                None: 1.0,
-                "int8": 1.2,
-                "float32": 1.0
-            }.get(compute_type, 1.0)
-
-        scale = device_multiplier * compute_multiplier
-        self.model_speeds = {
-            name: speed * scale for name, speed in self.base_model_speeds.items()
-        }
-
-    def refresh_estimates_for_queue(self):
-        """Recalculate estimates (removed - estimates were inaccurate)"""
-        # Estimates removed per user request
-        pass
-
     def show_model_info(self):
         """Show information about the selected model"""
         model_name = self.model_var.get()
-        model_sizes = {
-            "tiny": "~75MB download, ~1GB in memory",
-            "base": "~142MB download, ~1GB in memory",
-            "small": "~466MB download, ~2GB in memory",
-            "medium": "~1.5GB download, ~5GB in memory",
-            "large-v3": "~3GB download, ~10GB in memory"
-        }
-        
-        model_use_cases = {
-            "tiny": "Best for: Quick transcriptions, short audio, clear speech, English only",
-            "base": "Best for: General purpose, good balance of speed and accuracy",
-            "small": "Best for: Multiple languages, moderate accuracy needed",
-            "medium": "Best for: Complex audio, multiple speakers, high accuracy needed",
-            "large-v3": "Best for: Professional use, maximum accuracy, complex audio"
-        }
+        model_size = MODEL_METADATA[model_name]["size"]
+        model_use_case = MODEL_METADATA[model_name]["use_case"]
         
         # Check which models are downloaded using faster-whisper's cache location
         downloaded_models = []
-        for model in ["tiny", "base", "small", "medium", "large-v3"]:
-            model_path = self.get_model_cache_dir(model)
-            if os.path.isdir(model_path):
+        for model in SUPPORTED_MODELS:
+            model_path = get_model_cache_dir(model)
+            if model_path.is_dir():
                 downloaded_models.append(model)
         
         # Update status (model info removed per user request)
@@ -1009,44 +1073,27 @@ class TranscriptionApp:
         if not self.text_area.get(1.0, tk.END).strip():
             # Build model info text
             info_text = ""
-            info_text += f"Size: {model_sizes[model_name]}\n"
-            info_text += f"Use case: {model_use_cases[model_name]}\n"
+            info_text += f"Size: {model_size}\n"
+            info_text += f"Use case: {model_use_case}\n"
             info_text += "The model will be downloaded and run locally with faster-whisper.\n\n"
             
             # Add downloaded models info
             if downloaded_models:
                 info_text += "Downloaded models:\n"
                 for model in downloaded_models:
-                    info_text += f"- {model}: {model_sizes[model]}\n"
+                    info_text += f"- {model}: {MODEL_METADATA[model]['size']}\n"
                 info_text += "\n"
             else:
                 info_text += "No models downloaded yet. The selected model will be downloaded when you start transcription.\n\n"
             
             # Add model selection guidance
             info_text += "Model Selection Guide:\n"
-            info_text += "- tiny: Fastest, least accurate, English only\n"
-            info_text += "- base: Good balance of speed and accuracy\n"
-            info_text += "- small: Better accuracy, supports multiple languages\n"
-            info_text += "- medium: High accuracy, good for complex audio\n"
-            info_text += "- large-v3: Best accuracy, professional quality\n\n"
+            for model_key in SUPPORTED_MODELS:
+                info_text += f"{MODEL_METADATA[model_key]['selection']}\n"
+            info_text += "\n"
             
             self.text_area.delete(1.0, tk.END)
             self.text_area.insert(tk.END, info_text)
-
-    def format_timestamp(self, seconds):
-        """Convert seconds to HH:MM:SS format"""
-        return core_format_timestamp(seconds)
-
-    def format_time_estimate(self, minutes):
-        """Format time estimate in HH:MM format"""
-        hours = minutes // 60
-        mins = minutes % 60
-        return f"{hours:02d}:{mins:02d}"
-
-    def update_total_time_estimate(self):
-        """Update the total time estimate (removed - estimates were inaccurate)"""
-        # Estimates removed per user request
-        pass
 
     def update_remaining_time(self):
         """Update the elapsed time display near control buttons"""
@@ -1060,24 +1107,29 @@ class TranscriptionApp:
             self.elapsed_time_label["text"] = f"Elapsed: {elapsed}s"
             # Keep updating as long as start_time is set
             self.root.after(1000, self.update_remaining_time)
-        elif hasattr(self, 'processing_completed') and self.processing_completed:
-            # Processing finished naturally - show "Done!"
-            self.elapsed_time_label["text"] = "Done!"
-            self.processing_completed = False  # Reset flag
 
     def load_model(self, model_name, device=None, compute_type=None):
         """Load the faster-whisper model with download status"""
         try:
             # Get the model path in faster-whisper's cache
-            model_path = self.get_model_cache_dir(model_name)
+            model_path = get_model_cache_dir(model_name)
+            is_cached = is_model_cached(model_name)
+            model_size = MODEL_METADATA.get(model_name, {}).get("size")
+            size_hint = f" ({model_size})" if model_size else ""
 
-            # Check if model exists
-            if not os.path.isdir(model_path):
-                self.queue.put(("show_model_progress", True))
-                self.queue.put(("status", f"Downloading {model_name} model..."))
-                self.queue.put(("text", f"\nDownloading {model_name} model...\nThis is a one-time download. The model will be stored locally at:\n{model_path}\n\n"))
-                self.queue.put(("model_progress", 0))
-                self.queue.put(("model_progress_label", "Starting download..."))
+            if is_cached:
+                self.queue.put(("status", f"Found cached model '{model_name}' at {model_path}{size_hint}."))
+                self.queue.put(("text", f"Found cached model '{model_name}' at {model_path}.\n"))
+            else:
+                self.queue.put(("status", f"Model '{model_name}' not cached yet{size_hint}, downloading now."))
+                self.queue.put(
+                    ("text", (
+                        f"\nDownloading {model_name} model...\n"
+                        f"This is a one-time download. The model will be stored locally at:\n{model_path}\n\n"
+                    ))
+                )
+
+            start = time.perf_counter()
 
             # Load the model
             model = core_load_model(
@@ -1085,19 +1137,23 @@ class TranscriptionApp:
                 device=device or "auto",
                 compute_type=compute_type
             )
+            elapsed = time.perf_counter() - start
             
-            self.queue.put(("model_progress", 100))
-            self.queue.put(("model_progress_label", "Complete"))
+            if is_cached:
+                self.queue.put(("status", f"Model '{model_name}' loaded from cache in {elapsed:.2f}s."))
+                self.queue.put(("text", f"Model '{model_name}' loaded from cache in {elapsed:.2f}s.\n\n"))
+            else:
+                self.queue.put(("status", f"Model '{model_name}' download/load finished in {elapsed:.2f}s."))
+                self.queue.put(("text", f"Model '{model_name}' download/load finished in {elapsed:.2f}s.\n\n"))
+
             self.queue.put(("status", f"Model {model_name} loaded successfully"))
             self.queue.put(("text", f"Model {model_name} loaded successfully!\n\n"))
-            self.queue.put(("show_model_progress", False))
             return model
             
         except Exception as e:
             error_msg = f"Error loading model: {str(e)}"
             self.queue.put(("status", error_msg))
             self.queue.put(("text", f"\nError: {error_msg}\n"))
-            self.queue.put(("show_model_progress", False))
             raise
 
     def change_selected_model(self):
@@ -1119,7 +1175,7 @@ class TranscriptionApp:
         model_combo = ttk.Combobox(
             dialog,
             textvariable=model_var,
-            values=["tiny", "base", "small", "medium", "large-v3"],
+            values=SUPPORTED_MODELS,
             state="readonly",
             width=10
         )
@@ -1224,6 +1280,57 @@ class TranscriptionApp:
         except (IOError, OSError):
             return False
 
+    def _insert_file_row(self, filename, status, file_path):
+        """Insert a file row in the GUI queue and return the item id."""
+        return self.file_list.insert(
+            "",
+            tk.END,
+            values=(
+                filename,
+                status,
+                "Yes" if self.timestamps_var.get() else "No",
+                self.model_var.get(),
+                file_path,
+            ),
+        )
+
+    def get_audio_duration_seconds(self, file_path):
+        """Return audio duration in seconds for a supported file."""
+        cmd = [
+            'ffprobe',
+            '-v',
+            'error',
+            '-show_entries',
+            'format=duration',
+            '-of',
+            'default=noprint_wrappers=1:nokey=1',
+            file_path,
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        except FileNotFoundError as exc:
+            raise ValueError("Missing ffprobe dependency. Install ffmpeg to inspect audio files.") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ValueError("Audio duration probe timed out. Check file accessibility.") from exc
+
+        if result.returncode != 0:
+            error = result.stderr.strip() or "ffprobe reported an error"
+            raise ValueError(f"Invalid audio file: {error}")
+
+        duration_text = result.stdout.strip()
+        if not duration_text:
+            raise ValueError("Invalid audio duration: ffprobe output was empty")
+
+        try:
+            duration = float(duration_text)
+        except ValueError as exc:
+            raise ValueError("Invalid audio duration") from exc
+
+        if duration <= 0:
+            raise ValueError("Invalid duration")
+
+        return duration
+
     def get_selected_device(self):
         """Map friendly device label to faster-whisper device string"""
         return self.device_options.get(self.device_var.get(), "auto")
@@ -1231,11 +1338,6 @@ class TranscriptionApp:
     def get_selected_compute_type(self):
         """Map friendly compute label to faster-whisper compute_type"""
         return self.compute_label_to_type.get(self.compute_var.get())
-
-    def get_model_cache_dir(self, model_name):
-        """Get faster-whisper cache directory for a model"""
-        cache_root = os.path.expanduser("~/.cache/huggingface/hub")
-        return os.path.join(cache_root, f"models--Systran--faster-whisper-{model_name}")
 
 def main():
     root = tk.Tk()
