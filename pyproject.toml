@@ -6,8 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "whisper-batch-core"
 version = "0.1.0"
 description = "Core transcription utilities for faster-whisper"
-requires-python = ">=3.8"
-dependencies = ["faster-whisper>=1.0.3"]
+requires-python = ">=3.9"
+dependencies = ["faster-whisper>=1.2.1"]
+
+[project.scripts]
+whisper-batch = "transcribe_audio:cli"
+whisperbatch = "transcribe_audio:cli"
 
 [tool.setuptools]
 packages = ["whisper_batch_core"]
+py_modules = ["transcribe_audio"]
