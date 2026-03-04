@@ -35,10 +35,10 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
     monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
 
     for output_format, suffix, should_be_json in [
-        ("txt", ".txt", False),
-        ("json", ".json", True),
-        ("srt", ".srt", False),
-        ("vtt", ".vtt", False),
+        ("txt", "txt", False),
+        ("json", "json", True),
+        ("srt", "srt", False),
+        ("vtt", "vtt", False),
     ]:
         transcribe_audio.process_directory(str(tmp_path), output_format=output_format)
         output_file = tmp_path / "transcriptions" / f"clip_transcription.{suffix}"
@@ -51,9 +51,9 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
         elif output_format == "txt":
             assert "[00:00:00 --> 00:00:01] Hello world." in payload
         elif output_format == "srt":
-            assert payload.startswith("1\n00:00:000,100 --> 00:00:01,200")
+            assert payload.startswith("1\n00:00:00,100 --> 00:00:01,200")
         elif output_format == "vtt":
-            assert payload.startswith("WEBVTT\n\n00:00:000.100 --> 00:00:01.200")
+            assert payload.startswith("WEBVTT\n\n00:00:00.100 --> 00:00:01.200")
 
 
 def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
