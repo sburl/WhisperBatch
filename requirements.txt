@@ -2,4 +2,3 @@ faster-whisper==1.0.3
 numpy==2.0.2
 tqdm==4.66.1
 requests==2.31.0
-librosa==0.10.1

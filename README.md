@@ -112,138 +112,19 @@ python transcribe_audio.py /path/to/folder --no-timestamps
 python transcribe_audio.py /path/to/folder --output-format json
 python transcribe_audio.py /path/to/folder --output-format srt
 python transcribe_audio.py /path/to/folder --output-format vtt
-
-# Get machine-readable JSON summary and robust retry behavior
-python transcribe_audio.py /path/to/folder --summary-json --retries 2 --retry-delay 0.5
-# Use exponential backoff multiplier for retries
-python transcribe_audio.py /path/to/folder --retries 3 --retry-delay 1 --retry-backoff 2.0
-
-# Force overwrite for existing outputs
-python transcribe_audio.py /path/to/folder --overwrite
-
-# Set worker intent (single-worker in current release)
-python transcribe_audio.py /path/to/folder --max-workers 4
-
-# Run a postprocessing command per output
-python transcribe_audio.py /path/to/folder --postprocess-cmd "python scripts/postprocess.py --format txt"
-
-`--postprocess-cmd` appends the generated output path as the final positional argument.
-
-# Build a zip bundle of outputs after the run
-python transcribe_audio.py /path/to/folder --export-bundle run_bundle.zip
-
-`--export-bundle` creates a zip at the provided path (default relative to the target directory) containing the `transcriptions/` tree and `run_summary.json`.
-
-# Export per-segment annotations for search/indexing
-python transcribe_audio.py /path/to/folder --annotation-export annotations.jsonl
-
-`--annotation-export` writes one row per segment in either CSV (default `*.csv`) or JSONL (`*.jsonl`) format.
-
-# Run a post-process plugin on each output
-python transcribe_audio.py /path/to/folder --postprocess-plugin "sample_postprocess_plugins:redact_email_addresses"
-
-See [Post-process plugin contract](docs/postprocess-plugin-contract.md) for the
-interface details, metadata payload, and extension notes.
-
-`--postprocess-plugin` accepts `<module>:<callable>` and calls it with `(output_path, metadata)` where metadata
-is the runtime metadata object written to `*_transcription.txt.metadata.json`.
-
-# Force a Whisper language hint
-python transcribe_audio.py /path/to/folder --language en
-
-`--language` passes a language hint (`en`, `de`, `fr`, etc.) to whisper for all inputs in the run.
-
-# Use profile presets for reusable language/task combinations
-python transcribe_audio.py /path/to/folder --language-profile interview-es
-python transcribe_audio.py /path/to/folder --speaker-profile guest_translate
-
-`--language-profile` and `--speaker-profile` load presets from `.whisperbatch` and apply the profile options to the run.
-
-# Run translation mode
-python transcribe_audio.py /path/to/folder --task translate
-
-`--task` accepts `transcribe` (default) or `translate`.
-
-# Continue an interrupted run and skip files completed in same metadata
-python transcribe_audio.py /path/to/folder --resume
-
-# Use a project config file for defaults
-Create `/path/to/folder/.whisperbatch`:
-```json
-{
-  "model": "base",
-  "timestamps": false,
-  "overwrite": true,
-  "retries": 2,
-  "retry_delay": 0.5,
-  "retry_backoff": 2.0,
-  "output_format": "json",
-  "max_workers": 2,
-  "postprocess_command": "python scripts/postprocess.py --format txt",
-  "postprocess_plugin": "sample_postprocess_plugins:redact_email_addresses",
-  "export_bundle": "run_bundle.zip",
-  "annotation_export": "annotations.csv",
-  "language_profiles": {
-    "interview-es": {
-      "language": "es",
-      "task": "transcribe",
-      "model": "base"
-    },
-    "interview-fr-translate": {
-      "language": "fr",
-      "task": "translate"
-    }
-  },
-  "speaker_profiles": {
-    "guest-translate": {
-      "language": "en",
-      "task": "translate"
-    },
-    "host-default": {
-      "language": "en",
-      "task": "transcribe"
-    }
-  },
-  "language_profile": "interview-fr-translate",
-  "speaker_profile": "guest-translate",
-  "language": "en",
-  "task": "translate",
-  "resume": true
-}
-```
-Profile objects support the same option keys as CLI flags (including `model`), so a profile can switch model/task/language together for a run. CLI `--model` remains the highest-priority override.
-
-Then run:
-```bash
-python transcribe_audio.py /path/to/folder
-```
-CLI flags always override config values:
-```bash
-python transcribe_audio.py /path/to/folder --model large-v3 --no-timestamps --retries 0
 ```
 
-# Provenance metadata
-When a run succeeds, each output file gets a metadata sidecar:
-`*_transcription.txt.metadata.json` (or the matching format-specific suffix).
+The CLI writes one transcript per media file into `transcriptions/` and prints a run summary:
+`success`, `failed`, `skipped`, and `total`.
 
-Metadata includes source file, output path, runtime options, and processing timestamp.
+> Note: advanced workflow flags such as `--resume`, retries, worker controls, and
+> post-process hooks are not part of this CLI branch.
 
-When a file fails, the run summary includes a `failures` array with the file path,
-error type, and retry count. The same failure information is also written to
-`transcriptions/postmortem.jsonl` for quick CLI-side triage.
+GUI metadata and resume:
+- GUI writes a metadata sidecar for each output file: `<output> .metadata.json`
+- GUI **Resume completed files** checks metadata to skip files already completed
+  with matching model/output settings
 
-### Resume a previously interrupted run
-
-You can resume where a run left off with:
-
-```bash
-python transcribe_audio.py /path/to/folder --resume
-```
-
-Resume uses the metadata sidecar and skips files that were already completed with the same
-options used for the current run.
-
-If options changed or metadata is missing, that file is reprocessed.
 
 ---
 
@@ -295,7 +176,7 @@ If the CLI/GUI reports model-load failures:
    ```
 3. Re-run with a smaller model first to verify runtime health:
    ```bash
-   python transcribe_audio.py /path/to/folder --model base --resume
+   python transcribe_audio.py /path/to/folder --model base
    ```
 4. If it still fails, capture and include:
    - Python version
