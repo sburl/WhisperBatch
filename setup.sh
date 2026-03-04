@@ -13,7 +13,7 @@ cd "$PROJECT_DIR"
 # Pick the python interpreter: prefer python3 from PATH
 PYTHON_BIN=${PYTHON_BIN:-$(command -v python3 || true)}
 if [[ -z "$PYTHON_BIN" ]]; then
-  echo "❌ python3 not found in PATH. Please install Python 3.8+ first." >&2
+  echo "❌ python3 not found in PATH. Please install Python 3.9+ first." >&2
   exit 1
 fi
 
