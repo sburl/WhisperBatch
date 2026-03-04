@@ -68,7 +68,6 @@ class TestOutputFormatHelpers(unittest.TestCase):
 
     def test_render_output_text_json(self):
         expected_text = "Hello World"
-        expected_payload = _result_to_json_payload(self.segments)
         output_payload = _render_output_text(self.segments, "json", False)
         parsed = json.loads(output_payload)
         self.assertEqual(parsed["text"], expected_text)
