@@ -2,5 +2,6 @@
 pip-tools>=7.4,<8
 
 ruff>=0.5,<1
+pytest>=8,<9
 bandit>=1.7,<2
 pip-audit>=2.7,<3

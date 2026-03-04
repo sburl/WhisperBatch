@@ -127,7 +127,7 @@ def get_model_cache_dir(model_name: str, *, cache_dir: Optional[str] = None) -> 
     """Return the cached model directory path used by faster-whisper."""
     model_key = model_name.strip()
     hf_dir = Path(cache_dir).expanduser() if cache_dir else _resolve_hf_cache_root()
-    return hf_dir / "models--Systran--faster-whisper-" / model_key
+    return hf_dir / f"models--Systran--faster-whisper-{model_key}"
 
 
 def _resolve_hf_cache_root() -> Path:

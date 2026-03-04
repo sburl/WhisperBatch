@@ -19,12 +19,41 @@ from whisper_batch_core import (
 )
 
 
-def _build_output_file_path(output_dir: Path, input_path: Path, output_format: str) -> Path:
-    candidate = output_dir / f"{input_path.stem}_transcription.{_output_extension(output_format)}"
-    if not candidate.exists():
-        return candidate
-    suffix = input_path.suffix.lstrip(".") or "unknown"
-    return output_dir / f"{input_path.stem}_{suffix}_transcription.{_output_extension(output_format)}"
+def _group_files_by_stem(paths):
+    grouped = {}
+    for path in paths:
+        grouped.setdefault(path.stem, []).append(path)
+    return grouped
+
+
+def _build_output_file_path(
+    output_dir: Path,
+    input_path: Path,
+    output_format: str,
+    stem_groups,
+    reserved_output_paths,
+) -> Path:
+    output_extension = _output_extension(output_format)
+    stem_candidates = stem_groups.get(input_path.stem, [input_path])
+    is_primary_stem_path = stem_candidates[0] == input_path
+
+    if len(stem_candidates) == 1 or is_primary_stem_path:
+        candidate = output_dir / f"{input_path.stem}_transcription.{output_extension}"
+    else:
+        suffix = input_path.suffix.lstrip(".") or "unknown"
+        candidate = output_dir / f"{input_path.stem}_{suffix}_transcription.{output_extension}"
+
+    if candidate in reserved_output_paths:
+        index = 1
+        while True:
+            indexed_candidate = output_dir / f"{candidate.stem}_{index}{candidate.suffix}"
+            if indexed_candidate not in reserved_output_paths:
+                candidate = indexed_candidate
+                break
+            index += 1
+
+    reserved_output_paths.add(candidate)
+    return candidate
 
 
 def _collect_supported_files(directory: Path):
@@ -188,6 +217,8 @@ def process_directory(
     output_dir.mkdir(exist_ok=True)
     
     supported_files = _collect_supported_files(directory)
+    stem_groups = _group_files_by_stem(supported_files)
+    reserved_output_paths = set()
     total_candidates = len(supported_files)
     total_entries = len([path for path in directory.iterdir() if path.is_file()])
     summary = {
@@ -204,7 +235,13 @@ def process_directory(
         if verbose:
             print(f"\nProcessing: {file_path.name}")
         try:
-            output_file = _build_output_file_path(output_dir, file_path, output_format)
+            output_file = _build_output_file_path(
+                output_dir,
+                file_path,
+                output_format,
+                stem_groups,
+                reserved_output_paths,
+            )
             if output_file.exists() and not overwrite:
                 if verbose:
                     print(f"Skipping existing output: {output_file}")
