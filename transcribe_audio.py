@@ -28,7 +28,7 @@ def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, 
 def process_directory(directory_path, model_name="large-v3", include_timestamps=True):
     """Process all supported audio/video files in the given directory"""
     audio_extensions = SUPPORTED_EXTENSIONS
-    directory = Path(directory_path)
+    directory = Path(directory_path).expanduser()
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
