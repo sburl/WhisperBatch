@@ -18,7 +18,11 @@ TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
 def _build_output_file_path(output_dir: Path, input_path: Path, output_format: str) -> Path:
-    return output_dir / f"{input_path.stem}_transcription.{_output_extension(output_format)}"
+    candidate = output_dir / f"{input_path.stem}_transcription.{_output_extension(output_format)}"
+    if not candidate.exists():
+        return candidate
+    suffix = input_path.suffix.lstrip(".") or "unknown"
+    return output_dir / f"{input_path.stem}_{suffix}_transcription.{_output_extension(output_format)}"
 
 
 def _collect_supported_files(directory: Path):

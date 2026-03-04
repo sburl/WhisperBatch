@@ -56,6 +56,26 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
             assert payload.startswith("WEBVTT\n\n00:00:000.100 --> 00:00:01.200")
 
 
+def test_output_path_disambiguates_same_stem_extensions(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("wav", encoding="utf-8")
+    (tmp_path / "clip.MP3").write_text("mp3", encoding="utf-8")
+
+    def fake_load_model(*_, **__):
+        return object()
+
+    def fake_transcribe_file(audio_path, **kwargs):
+        return _FakeTranscriptionResult("ok", [TranscriptSegment(start=0, end=0, text="ok")])
+
+    monkeypatch.setattr(transcribe_audio, "load_model", fake_load_model)
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
+
+    transcribe_audio.process_directory(str(tmp_path), output_format="txt")
+
+    output_dir = tmp_path / "transcriptions"
+    assert (output_dir / "clip_transcription.txt").exists()
+    assert (output_dir / "clip_MP3_transcription.txt").exists()
+
+
 def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
     (tmp_path / "good.wav").write_text("x", encoding="utf-8")
     (tmp_path / "bad.mp3").write_text("x", encoding="utf-8")

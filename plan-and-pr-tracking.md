@@ -145,6 +145,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 97 | PR-DK | Add optional machine-readable summary output and timing | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--summary-json` output mode, elapsed/throughput summary metrics, and summary output coverage |
 | 98 | PR-DL | Add configurable retry attempts for transient transcription failures | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--max-retries` CLI flag and retry loop with coverage for transient success and exhaustion cases |
 | 99 | PR-DM | Make `--summary-json` output machine-readable by suppressing noisy logs | `transcribe_audio.py` | Done | Pending (Gemini quota) | Keeps batch processing output clean for JSON consumers by silencing non-summary progress prints |
+| 100 | PR-DN | Disambiguate output paths for same-stem media files | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Uses source extension in output filename when base stem collisions would otherwise overwrite outputs |
 
 ### PR-E execution notes
 
