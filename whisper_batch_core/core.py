@@ -16,6 +16,8 @@ SUPPORTED_EXTENSIONS = {
     '.mpeg', '.mpg', '.ts', '.webm', '.wmv',
 }
 
+DEFAULT_OUTPUT_FORMAT = "txt"
+
 
 def load_model(model_name: str, device: str = "auto", compute_type: Optional[str] = None) -> WhisperModel:
     """Load a faster-whisper model with the requested device/compute settings."""
