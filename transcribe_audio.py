@@ -25,7 +25,6 @@ def _group_files_by_stem(paths):
         grouped.setdefault(path.stem, []).append(path)
     return grouped
 
-
 def _build_output_file_path(
     output_dir: Path,
     input_path: Path,

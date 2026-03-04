@@ -81,6 +81,13 @@ def test_output_path_disambiguates_same_stem_extensions(tmp_path, monkeypatch):
     )
 
 
+def test_effective_include_timestamps_for_output_format():
+    assert transcribe_audio._effective_include_timestamps("srt", False) is True
+    assert transcribe_audio._effective_include_timestamps("vtt", False) is True
+    assert transcribe_audio._effective_include_timestamps("txt", False) is False
+    assert transcribe_audio._effective_include_timestamps("json", True) is True
+
+
 def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
     (tmp_path / "good.wav").write_text("x", encoding="utf-8")
     (tmp_path / "bad.mp3").write_text("x", encoding="utf-8")

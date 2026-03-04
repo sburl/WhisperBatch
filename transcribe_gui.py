@@ -13,6 +13,7 @@ import json
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
     SUPPORTED_OUTPUT_FORMATS,
+    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     DEFAULT_OUTPUT_FORMAT,
     DEFAULT_TASK_NAME,
     DEFAULT_MODEL_NAME,
@@ -108,7 +109,7 @@ def _result_to_json_payload(segments):
 
 def _effective_include_timestamps_for_output(output_format: str, include_timestamps: bool):
     if output_format in TIMESTAMP_ONLY_OUTPUT_FORMATS:
-        return False
+        return True
     return bool(include_timestamps)
 
 
