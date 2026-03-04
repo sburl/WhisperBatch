@@ -171,7 +171,9 @@ def test_process_directory_prints_summary_json_when_requested(tmp_path, monkeypa
     monkeypatch.setattr(transcribe_audio.time, "perf_counter", lambda: 0.0)
 
     transcribe_audio.process_directory(str(tmp_path), summary_json=True)
-    output = capsys.readouterr().out.strip().splitlines()[-1]
+    lines = capsys.readouterr().out.strip().splitlines()
+    assert len(lines) == 1
+    output = lines[-1]
     summary = json.loads(output)
 
     assert summary["total"] == 1

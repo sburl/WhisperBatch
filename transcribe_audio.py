@@ -98,12 +98,20 @@ def _output_extension(output_format: str):
     return output_format
 
 
-def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, model=None, output_format="txt"):
+def transcribe_audio(
+    file_path,
+    model_name="large-v3",
+    include_timestamps=True,
+    model=None,
+    output_format="txt",
+    verbose=True,
+):
     """Transcribe audio file using faster-whisper"""
     # Allow caller to supply a pre-loaded model so we don't reload per file
     model = model or load_model(model_name, device="auto")
     
-    print(f"Transcribing: {file_path}")
+    if verbose:
+        print(f"Transcribing: {file_path}")
     result = transcribe_file(
         str(file_path),
         model_name=model_name,
@@ -122,6 +130,7 @@ def _transcribe_with_retries(
     model,
     output_format,
     max_retries,
+    verbose,
 ):
     attempts = 0
     while True:
@@ -132,6 +141,7 @@ def _transcribe_with_retries(
                 include_timestamps,
                 model=model,
                 output_format=output_format,
+                verbose=verbose,
             )
         except Exception as exc:
             attempts += 1
@@ -159,9 +169,11 @@ def process_directory(
         raise ValueError(f"Not a directory: {directory_path}")
     if max_retries < 0:
         raise ValueError(f"max_retries must be >= 0: {max_retries}")
+    verbose = not summary_json
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
-    print(f"Loading faster-whisper model: {model_name}")
+    if verbose:
+        print(f"Loading faster-whisper model: {model_name}")
     model = load_model(model_name, device="auto")
     
     # Create output directory
@@ -182,11 +194,13 @@ def process_directory(
 
     # Process each audio file
     for file_path in supported_files:
-        print(f"\nProcessing: {file_path.name}")
+        if verbose:
+            print(f"\nProcessing: {file_path.name}")
         try:
             output_file = _build_output_file_path(output_dir, file_path, output_format)
             if output_file.exists() and not overwrite:
-                print(f"Skipping existing output: {output_file}")
+                if verbose:
+                    print(f"Skipping existing output: {output_file}")
                 summary["skipped"] += 1
                 continue
 
@@ -197,16 +211,19 @@ def process_directory(
                 output_format=output_format,
                 model=model,
                 max_retries=max_retries,
+                verbose=verbose,
             )
             
             # Save transcription to file
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(transcription)
-            print(f"Transcription saved to: {output_file}")
+            if verbose:
+                print(f"Transcription saved to: {output_file}")
             summary["success"] += 1
                 
         except Exception as e:
-            print(f"Error processing {file_path.name}: {str(e)}")
+            if verbose:
+                print(f"Error processing {file_path.name}: {str(e)}")
             summary["failed"] += 1
 
     elapsed_seconds = round(time.perf_counter() - start_time, 3)
