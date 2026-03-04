@@ -41,21 +41,24 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     output_dir = directory / "transcriptions"
     output_dir.mkdir(exist_ok=True)
     
+    media_files = sorted(
+        [path for path in directory.iterdir() if path.suffix.lower() in audio_extensions]
+    )
+
     # Process each audio file
-    for file_path in directory.glob("*"):
-        if file_path.suffix.lower() in audio_extensions:
-            print(f"\nProcessing: {file_path.name}")
-            try:
-                transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
-                
-                # Save transcription to file
-                output_file = output_dir / f"{file_path.stem}_transcription.txt"
-                with open(output_file, "w", encoding="utf-8") as f:
-                    f.write(transcription)
-                print(f"Transcription saved to: {output_file}")
-                
-            except Exception as e:
-                print(f"Error processing {file_path.name}: {str(e)}")
+    for file_path in media_files:
+        print(f"\nProcessing: {file_path.name}")
+        try:
+            transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
+            
+            # Save transcription to file
+            output_file = output_dir / f"{file_path.stem}_transcription.txt"
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(transcription)
+            print(f"Transcription saved to: {output_file}")
+            
+        except Exception as e:
+            print(f"Error processing {file_path.name}: {str(e)}")
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")
