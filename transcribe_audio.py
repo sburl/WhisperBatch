@@ -32,6 +32,8 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+    if not directory.is_dir():
+        raise ValueError(f"Not a directory: {directory_path}")
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
@@ -42,7 +44,7 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     output_dir.mkdir(exist_ok=True)
     
     media_files = sorted(
-        [path for path in directory.iterdir() if path.suffix.lower() in audio_extensions]
+        [path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in audio_extensions]
     )
 
     # Process each audio file
