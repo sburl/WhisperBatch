@@ -32,6 +32,11 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+
+    media_files = [entry for entry in directory.iterdir() if entry.suffix.lower() in audio_extensions]
+    if not media_files:
+        print("No supported media files found in the directory.")
+        return
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
