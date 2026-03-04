@@ -16,7 +16,7 @@ A Python package and GUI application for transcribing audio files using [faster-
 ## Quick-start (all platforms)
 ```bash
 # clone project
-cd AudioTranscribe
+cd WhisperBatch
 
 # one-step setup (creates .venv, installs deps, handles Apple-silicon quirks)
 chmod +x setup.sh
