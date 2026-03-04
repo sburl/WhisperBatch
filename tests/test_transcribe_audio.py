@@ -239,3 +239,23 @@ def test_process_directory_retries_exhausts_and_marks_failed(tmp_path, monkeypat
     assert summary["total"] == 1
     assert summary["success"] == 0
     assert summary["failed"] == 1
+
+
+def test_summary_json_no_retry_trace_when_not_verbose(tmp_path, monkeypatch, capsys):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+
+    calls = []
+
+    def flaky_transcribe_file(audio_path, **kwargs):
+        calls.append(audio_path)
+        raise RuntimeError("temporary failure")
+
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", flaky_transcribe_file)
+
+    transcribe_audio.process_directory(str(tmp_path), summary_json=True, max_retries=1)
+    lines = capsys.readouterr().out.strip().splitlines()
+
+    assert len(lines) == 1
+    json.loads(lines[0])["failed"] == 1
+    assert len(calls) == 2

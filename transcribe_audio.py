@@ -151,9 +151,10 @@ def _transcribe_with_retries(
             attempts += 1
             if attempts > max_retries:
                 raise
-            print(
-                f"Retrying {file_path.name}: attempt {attempts}/{max_retries} after error: {exc}"
-            )
+            if verbose:
+                print(
+                    f"Retrying {file_path.name}: attempt {attempts}/{max_retries} after error: {exc}"
+                )
 
 def process_directory(
     directory_path,
