@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 from whisper_batch_core import TranscriptSegment
 import transcribe_audio
 
