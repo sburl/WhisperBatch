@@ -51,9 +51,9 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
         elif output_format == "txt":
             assert "[00:00:00 --> 00:00:01] Hello world." in payload
         elif output_format == "srt":
-            assert payload.startswith("1\n00:00:000,100 --> 00:00:01,200")
+            assert payload.startswith("1\n00:00:00,100 --> 00:00:01,200")
         elif output_format == "vtt":
-            assert payload.startswith("WEBVTT\n\n00:00:000.100 --> 00:00:01.200")
+            assert payload.startswith("WEBVTT\n\n00:00:00.100 --> 00:00:01.200")
 
 
 def test_output_path_disambiguates_same_stem_extensions(tmp_path, monkeypatch):
