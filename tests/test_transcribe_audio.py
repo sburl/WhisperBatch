@@ -35,10 +35,10 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
     monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
 
     for output_format, suffix, should_be_json in [
-        ("txt", ".txt", False),
-        ("json", ".json", True),
-        ("srt", ".srt", False),
-        ("vtt", ".vtt", False),
+        ("txt", "txt", False),
+        ("json", "json", True),
+        ("srt", "srt", False),
+        ("vtt", "vtt", False),
     ]:
         transcribe_audio.process_directory(str(tmp_path), output_format=output_format)
         output_file = tmp_path / "transcriptions" / f"clip_transcription.{suffix}"
