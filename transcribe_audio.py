@@ -11,12 +11,12 @@ from whisper_batch_core import (
     SUPPORTED_OUTPUT_FORMATS,
     DEFAULT_MODEL_NAME,
     DEFAULT_OUTPUT_FORMAT,
+    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     render_plain_text,
     render_timestamped_text,
     load_model,
     transcribe_file,
 )
-TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
 def _build_output_file_path(output_dir: Path, input_path: Path, output_format: str) -> Path:
