@@ -26,8 +26,8 @@ class TestOutputFormatHelpers(unittest.TestCase):
         ]
 
     def test_effective_include_timestamps_for_output(self):
-        self.assertFalse(_effective_include_timestamps_for_output("srt", True))
-        self.assertFalse(_effective_include_timestamps_for_output("vtt", True))
+        self.assertTrue(_effective_include_timestamps_for_output("srt", False))
+        self.assertTrue(_effective_include_timestamps_for_output("vtt", False))
         self.assertFalse(_effective_include_timestamps_for_output("txt", False))
         self.assertFalse(_effective_include_timestamps_for_output("json", False))
         self.assertTrue(_effective_include_timestamps_for_output("txt", True))
