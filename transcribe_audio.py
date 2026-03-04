@@ -16,6 +16,10 @@ SUPPORTED_OUTPUT_FORMATS = {"txt", "json", "srt", "vtt"}
 TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
+def _build_output_file_path(output_dir: Path, input_path: Path, output_format: str) -> Path:
+    return output_dir / f"{input_path.stem}_transcription.{_output_extension(output_format)}"
+
+
 def _collect_supported_files(directory: Path):
     files = [path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS]
     files.sort(key=lambda path: (path.name.lower(), path.name))
@@ -109,7 +113,13 @@ def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, 
     )
     return _render_output_text(result.segments, output_format, include_timestamps)
 
-def process_directory(directory_path, model_name="large-v3", include_timestamps=True, output_format="txt"):
+def process_directory(
+    directory_path,
+    model_name="large-v3",
+    include_timestamps=True,
+    output_format="txt",
+    overwrite=False,
+):
     """Process all supported audio/video files in the given directory"""
     directory = Path(directory_path)
     
@@ -140,6 +150,12 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     for file_path in supported_files:
         print(f"\nProcessing: {file_path.name}")
         try:
+            output_file = _build_output_file_path(output_dir, file_path, output_format)
+            if output_file.exists() and not overwrite:
+                print(f"Skipping existing output: {output_file}")
+                summary["skipped"] += 1
+                continue
+
             transcription = transcribe_audio(
                 file_path,
                 model_name,
@@ -149,7 +165,6 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
             )
             
             # Save transcription to file
-            output_file = output_dir / f"{file_path.stem}_transcription.{_output_extension(output_format)}"
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(transcription)
             print(f"Transcription saved to: {output_file}")
@@ -180,11 +195,22 @@ def main():
         choices=sorted(SUPPORTED_OUTPUT_FORMATS),
         help="Output format to write for each transcription (default: txt)",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing transcript files (default: skip)",
+    )
     
     args = parser.parse_args()
     
     try:
-        process_directory(args.directory, args.model, not args.no_timestamps, args.output_format)
+        process_directory(
+            args.directory,
+            args.model,
+            not args.no_timestamps,
+            args.output_format,
+            overwrite=args.overwrite,
+        )
     except Exception as e:
         print(f"Error: {str(e)}")
         return 1

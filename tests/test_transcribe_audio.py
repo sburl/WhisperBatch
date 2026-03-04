@@ -74,3 +74,53 @@ def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
 
     summary = transcribe_audio.process_directory(str(tmp_path), output_format="txt")
     assert summary == {"total": 2, "success": 1, "failed": 1, "skipped": 1}
+
+
+def test_process_directory_skips_existing_output_without_overwrite_flag(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    output_dir = tmp_path / "transcriptions"
+    output_dir.mkdir()
+    existing_output = output_dir / "clip_transcription.txt"
+    existing_output.write_text("old transcription", encoding="utf-8")
+
+    calls = []
+
+    def fake_load_model(*_, **__):
+        return object()
+
+    def fake_transcribe_file(audio_path, **kwargs):
+        calls.append(audio_path)
+        return _FakeTranscriptionResult("new", [TranscriptSegment(start=0, end=0, text="new")])
+
+    monkeypatch.setattr(transcribe_audio, "load_model", fake_load_model)
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
+
+    summary = transcribe_audio.process_directory(str(tmp_path), output_format="txt", overwrite=False)
+
+    assert summary == {"total": 1, "success": 0, "failed": 0, "skipped": 1}
+    assert calls == []
+    assert existing_output.read_text(encoding="utf-8") == "old transcription"
+
+
+def test_process_directory_overwrites_existing_output_with_overwrite_flag(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    output_dir = tmp_path / "transcriptions"
+    output_dir.mkdir()
+    existing_output = output_dir / "clip_transcription.txt"
+    existing_output.write_text("old transcription", encoding="utf-8")
+
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+
+    def fake_transcribe_file(audio_path, **kwargs):
+        return _FakeTranscriptionResult("new", [TranscriptSegment(start=0, end=0, text="new")])
+
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
+
+    summary = transcribe_audio.process_directory(
+        str(tmp_path),
+        output_format="txt",
+        overwrite=True,
+    )
+
+    assert summary == {"total": 1, "success": 1, "failed": 0, "skipped": 0}
+    assert "new" in existing_output.read_text(encoding="utf-8")

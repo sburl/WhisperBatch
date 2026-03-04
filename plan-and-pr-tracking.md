@@ -141,6 +141,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 93 | PR-DG | Add CLI output-format flags and renderers | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--output-format` with TXT/JSON/SRT/VTT rendering and format-specific output extension handling |
 | 94 | PR-DH | Stabilize CLI input ordering in `process_directory` | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Sorts supported media files case-insensitive with deterministic tie-breakers before batch processing |
 | 95 | PR-DI | Add CLI directory summary output and validation | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds deterministic file validation summary counts, non-directory guard, and graceful failure counting for batch runs |
+| 96 | PR-DJ | Add `--overwrite` guardrail for existing transcript outputs | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--overwrite` CLI flag, skip behavior for existing outputs, and overwrite-enabled update coverage |
 
 ### PR-E execution notes
 
