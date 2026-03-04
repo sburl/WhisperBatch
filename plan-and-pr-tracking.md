@@ -1,131 +1,158 @@
-# PR Roadmap and Merge Order
+# WhisperBatch Improvement Plan and PR Tracking
 
-**Created:** 2026-03-04-06-40
-**Last Updated:** 2026-03-03-21-51
+**Created:** 2026-03-03-16-56
+**Last Updated:** 2026-03-03-16-56
 
-## Current open PR inventory
+Date: 2026-03-03
 
-| PR | Branch | Title | Priority | Merge dependency notes |
-|---|---|---|---|---|
-| 33 | `pr-ez-expanduser-dir-path` | feat(cli): expand user home in directory path | High | No hard dependency; merge when review is complete. |
-| 32 | `pr-dw-ci-setuptools` | ci: install setuptools/wheel before dependency install | High | Can be merged early; low risk foundation for CI robustness. |
-| 31 | `pr-dv-cli-model-validation` | feat(cli): validate model names in directory processing | Medium | Should be paired with core-constant cleanup (`29`) and any future model-constant changes. |
-| 30 | `pr-dr-cli-timestamp-constant` | refactor(cli): reuse shared timestamp-only output constants | Medium | Depends on shared-constant availability in core (`29`) and is safe after that. |
-| 29 | `pr-dq-cli-core-constants` | feat(core): restore shared constants and metadata helpers | High | Core dependency for CLI consistency PRs (`30`, `31`, `28`, `27`). |
-| 28 | `pr-dk-cli-summary-json` | feat(cli): add optional JSON summary output with timing | Medium | No hard dependency if core constants merge (`29`) is present. |
-| 27 | `pr-dj-cli-overwrite` | feat(cli): add overwrite control for existing outputs | Medium | No hard dependency; ensure file output behavior with validation PRs. |
-| 26 | `pr-26-setup-python-version-guard` | chore(setup): guard unsupported python versions before venv | High | Foundation for setup resilience. |
-| 25 | `pr-25-ignore-transcriptions` | chore(gitignore): ignore generated transcriptions artifacts | Medium | Safe independent cleanup. |
-| 24 | `pr-24-readme-quickstart-path` | docs: correct README quickstart clone path | Low | Documentation only; can merge anytime. |
-| 23 | `pr-23-setup-torch-pin` | chore(setup): align torch pin with Apple Silicon guidance | High | Foundation for setup and install reliability on macOS arm64. |
-| 22 | `pr-22-torch-warning-2-4-1` | fix(gui): update arm64 torch reinstall guidance | High | Keep aligned with torch setup updates (`23`). |
-| 21 | `pr-21-readme-sync` | docs: sync README with current project status | Low | Safe after larger behavior/setup changes land. |
-| 20 | `pr-20-ci-split` | ci: split PR and nightly checks | High | Useful before scaling security/perf/e2e test additions. |
-| 19 | `pr-19-cli-workflow-stacked` | feat(cli): expand process workflow, outputs, and resilience | Medium | May conflict with `27/28/30/31`; review sequencing with smaller CLI patches. |
-| 18 | `pr-18-core-metadata` | feat(core): add cache metadata helpers and shared constants | Medium | Overlaps with `29`; reconcile before both merge. |
-| 17 | `pr-17-build-runtime` | chore(build): update runtime deps and setup flow | High | Core dependency for smooth development and CI stability. |
-| 16 | `pr-16-doc-design-plans` | docs: add future architecture feature blueprints | Low | Documentation reference for long-term stage planning. |
-| 15 | `test-local` | chore(docs): add planning and PR tracking artifacts | Medium | Historical baseline for this plan; depends on project-wide naming conventions. |
-| 14 | `pr-bi-ci-dev-dependency-install` | ci: install dependencies from requirements-dev | Medium | Supports richer quality gates and PR checks. |
-| 13 | `pr-bj-dev-tooling-manifest` | chore(dev): add pinned dev tooling manifest | Medium | Helps reproducible local + CI tooling. |
-| 12 | `pr-br-postprocess-plugin-samples` | feat(plugin): add sample postprocess plugins and tests | Medium | Independent feature + docs; can follow core testing/CI setup. |
-| 11 | `pr-bn-ci-secret-scan` | test(ci): add secret scanner unit tests | High | Stronger security posture for future automation. |
-| 10 | `pr-ca-async-envelope` | feat(core): add async task envelope contract and tests | Medium | Core utility to support staged async improvements. |
-| 9 | `pr-de-gui-output-format-tests` | test(gui): add output-format rendering helper tests | Medium | Nice companion to GUI output feature work. |
-| 8 | `pr-dd-gui-output-format` | feat(ui): add GUI output-format rendering parity | Medium | Should align with output format tests (`9`) and `33` for CLI path handling. |
-| 6 | `dependabot/pip/numpy-2.0.2` | Bump numpy from 1.24.3 to 2.0.2 | Medium | Security and maintenance dependency updates; review with lockfile constraints. |
-| 5 | `dependabot/pip/requests-2.32.5` | Bump requests from 2.31.0 to 2.32.5 | Medium | Dependency maintenance. |
-| 4 | `dependabot/pip/tqdm-4.67.3` | Bump tqdm from 4.66.1 to 4.67.3 | Low | Dependency maintenance. |
-| 3 | `dependabot/pip/librosa-0.11.0` | Bump librosa from 0.10.1 to 0.11.0 | Low | Dependency maintenance. |
-| 2 | `dependabot/pip/faster-whisper-1.2.1` | Bump faster-whisper from 1.0.3 to 1.2.1 | Medium | Core dependency; should be sequenced with core/API compatibility checks. |
+## Ground Rules
 
-## Recommended merge order (next 10)
+- Keep PRs small and tightly scoped.
+- Each PR should do one kind of change.
+- Review loop before merge:
+  1) internal self-review,
+  2) Gemini review via CLI command,
+  3) incorporate feedback,
+  4) final go/no-go.
+- Track all stages, PRs, and outcomes here.
 
-1. #33 — expanduser CLI path handling
-2. #26 — setup Python version guard
-3. #17 — build/runtime setup hardening
-4. #23 — torch pin updates
-5. #22 — torch remediation guidance
-6. #32 — CI setuptools/wheel guard
-7. #20 — CI split (PR-only + nightly)
-8. #11 — secret-scan tests
-9. #29 — shared core constants
-10. #31 — CLI model validation
-11. #30 — shared timestamp format constants
-12. #27 — CLI overwrite control
-13. #28 — JSON summary and timing
+## Current repository PR audit (remote PRs)
 
-## Merge order after initial core stabilization
+| PR # | Title | State | Base | Risk | My initial assessment |
+|---|---|---|---|---|---|
+| 7 | Add Dependabot | MERGED | main | Low | Already merged; keep as historical precedent. |
+| 2 | Bump faster-whisper 1.0.3 -> 1.2.1 | OPEN / BLOCKED | main | Medium | Safe-looking dependency bump, but should be reviewed against pinned assumptions and runtime compatibility. |
+| 6 | Bump numpy 1.24.3 -> 2.0.2 | OPEN / BLOCKED | main | Medium-High | Potential Python compatibility impact (3.8 support) and transitive dependency churn. |
+| 3 | Bump librosa 0.10.1 -> 0.11.0 | OPEN / BLOCKED | main | Medium | Should be evaluated with same model pipeline compatibility checks. |
+| 5 | Bump requests 2.31.0 -> 2.32.5 | OPEN / BLOCKED | main | Low | Low risk, mostly security/stability improvements. |
+| 4 | Bump tqdm 4.66.1 -> 4.67.3 | OPEN / BLOCKED | main | Low | Very low risk formatting/output changes only. |
 
-1. #18 or #29 conflict reconciliation (choose one base and rebalance before merge)
-2. #19 — CLI workflow expansion
-3. #14 — dev dependency install in CI
-4. #13 — pinned local tooling
-5. #12 — postprocess sample plugins
-6. #9 and #8 — GUI format tests and implementation
-7. #21 and #24 — documentation sync follow-up
-8. #16 and #15 — planning and future architecture context
+### PR review outcomes and planned in-repo mirror decisions
 
-## Big-feature planning (new work queue)
+- PR-requests (`requests==2.32.5`): **Review result: accept-with-follow-up**. Gemini flagged potential Python floor and TLS/session behavior risks. Follow-up: verify Python version policy before final merge.
+- PR-tqdm (`tqdm==4.67.3`): **Review result: approve**. Low-risk output behavior change; keep as dependency hygiene.
+- PR-librosa (`librosa==0.11.0`): **Review result: proceed with caution**. Potential numerical and dependency implications; verify preprocessing assumptions.
+- PR-faster-whisper (`faster-whisper==1.2.1`): **Review result: recommended with follow-up**. Requires environment validation (CUDA path) and VAD behavior verification.
+- PR-numpy (`numpy==2.0.2`): **Pending / likely hold** until matrix is validated (ABI/API break risk).
 
-This queue is split into stages with a minimum of 5 and a maximum of 15 tasks each.
+### Note on current blocks
 
-### Stage 1: Stability and foundations
-1. Add deterministic CLI test coverage for `process_directory` success and failure paths.
-2. Add GUI and CLI unit tests around supported media extension handling.
-3. Add tests that validate `transcribe_file` with timestamp on/off and malformed inputs.
-4. Add minimal CI for PR-only tests (lint + unit subset).
-5. Add nightly CI job for longer regression and multi-file scenarios.
-6. Add a dedicated `requirements-dev.txt` with pinned test/dev tools.
-7. Implement a small test fixture generator for fake Whisper models.
-8. Standardize logging output across CLI and GUI worker code paths.
-9. Add consistent `Path` normalization (tilde expansion + absolute path canonicalization).
-10. Define shared constants for model names and valid output formats in core.
+All open dependency PRs are blocked in merge state (no checks currently reported). With no CI to validate, we should treat them as unmerged candidates and manually incorporate validated updates in a staged local sequence.
 
-### Stage 2: Quality and bug-hardening
-1. Add strict validation for directory arguments and output directory permissions.
-2. Normalize and sort file discovery in CLI/GUI for deterministic execution.
-3. Improve error aggregation so failed files still produce clear run summaries.
-4. Ensure timestamp output is identical across plain/text/GUI rendering.
-5. Add guardrails for missing FFmpeg dependencies with user-friendly errors.
-6. Add per-file timing and aggregate JSON summary output.
-7. Add overwrite policy options (`skip`, `replace`, `timestamped`) for all outputs.
-8. Add cancellation handling for CLI batch runs with resumable state.
-9. Add regression tests for unsupported compute/device combinations.
-10. Add defensive path handling for non-ASCII filenames and symlinks.
+## PR Tracking Table (for work to execute)
 
-### Stage 3: Performance and resilience
-1. Add async worker queue for CLI to match GUI parallel behavior.
-2. Add configurable concurrency limits for batch transcription.
-3. Cache loaded model instances across directory runs where safe.
-4. Add per-output artifact cleanup for partial/interrupted runs.
-5. Add optional transcription resume support from last completed file.
-6. Add lightweight progress heartbeat and ETA smoothing.
-7. Add optional output compression for very large transcription artifacts.
-8. Add model warmup step with progress and fallback messaging.
-9. Add integration tests that mock long-running jobs to validate pause/resume logic.
-10. Add stress-profile fixture and benchmark script for model/runtime matrix.
+- `status`: `Planned` | `In progress` | `Done` | `Needs follow-up`.
+- `review`: `Pending` | `Gemini requested` | `Gemini approved` | `Needs rework`.
 
-### Stage 4: Security and operations
-1. Add input-path allowlist/denylist for batch jobs to reduce accidental exfiltration risk.
-2. Add secret scanners in pre-commit and pre-push hooks for changed files.
-3. Add checksum verification for dependency installation manifests.
-4. Add audit logging for model download and local cache writes.
-5. Add least-privilege execution mode for temporary transcriptions.
-6. Add explicit file permission checks before write operations.
-7. Add CI secret-detection gate on all pull requests.
-8. Add package-safety scan on schedule and PR (dependency CVE check).
-9. Introduce pinned runtime version floor policy docs and enforcement.
-10. Add incident-response checklist for corrupted model cache and unsafe filesystem states.
+| Order | PR ID | Scope | Files | Planned status | Review status | Merge intent |
+|---|---|---|---|---|---|---|
+| 1 | PR-A | Baseline docs + planning artifacts | `user-questions-and-answers.md`, `plan-and-pr-tracking.md` | Done | Pending | No code behavior change |
+| 2 | PR-B | Mirror dependency PRs for `requirements.txt` (`faster-whisper`, `tqdm`, `requests`) | `requirements.txt`, `pyproject.toml` | Done | Pending (Gemini quota) | Library floor aligned to `>=3.9` and dependencies mirrored with current pin set |
+| 3 | PR-C | Optional numpy bump decision + compatibility fallback strategy | `requirements.txt`, `pyproject.toml`, `.github/workflows/ci.yml`, `setup.sh`, `transcribe_gui.py`, `README.md` | Done | Gemini approved | Raises Python floor to 3.9 and aligns NumPy 2.0.x support with torch and environment setup/docs. |
+| 4 | PR-E | Add local CI workflow (PR and nightly split) | `.github/workflows/ci.yml` | Done | Gemini approved | Mandatory foundation for future PRs |
+| 5 | PR-F | CLI/GUI/packaging validation improvements and bug hardening | `transcribe_audio.py`, `transcribe_gui.py`, `whisper_batch_core/*` | Done | Gemini approved | Incremental after CI exists |
+| 6 | PR-G | Dead code pass (GUI cleanup) | `transcribe_gui.py` | Done | Pending | Removed dead UI estimate helpers and no-op state paths. Continue core cleanup in follow-up PRs |
+| 7 | PR-G1 | Shared model metadata source-of-truth | `whisper_batch_core/core.py`, `transcribe_audio.py`, `transcribe_gui.py` | Done | Pending | `SUPPORTED_MODELS` is now defined in core and consumed by CLI/GUI |
+| 8 | PR-H | Simplification/refactor pass (readability + function boundaries) | `transcribe_gui.py` | Done | Pending | Shared model metadata constant extraction in GUI |
+| 9 | PR-I | Do-work queue and stage planning system | `do-work-queue.md` | Done | Gemini approved | Align future work with explicit roadmap and execution order |
+| 10 | PR-J | Add CI secret scanning guardrail | `scripts/ci_secret_scan.py`, `.github/workflows/ci.yml` | Done | Gemini approved | Adds lightweight secret scanning in PR and nightly CI |
+| 11 | PR-K | Expand core helper edge-case tests | `tests/test_core.py` | Done | Gemini approved | Adds core helper invariants and load_model/model-task coverage |
+| 12 | PR-L | Add output overwrite guard for CLI batch runs | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Gemini approved | Adds `--overwrite` and skip behavior for existing outputs |
+| 13 | PR-M | Harden CLI input validation and actionable error messages | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Gemini approved | Adds validation for model name, retry settings, and directory argument consistency |
+| 14 | PR-N | Improve CLI completion summary output | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Gemini approved | Adds `elapsed_seconds` and `success` summary metrics for each directory run |
+| 15 | PR-O | Add CLI output format options (`txt/json/srt/vtt`) | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--output-format` with renderer support and format-specific file output |
+| 16 | PR-P | Add machine-readable summary output mode | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--summary-json` for downstream automation consumption |
+| 17 | PR-Q | Add throughput metrics to CLI summary | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `throughput_files_per_second` and prints throughput in final summary |
+| 18 | PR-R | Add nightly dependency vulnerability scan to CI | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Adds `pip-audit` to nightly checks |
+| 19 | PR-S | Expand CLI docs for output formats, retries, and machine-readable summaries | `README.md` | Done | Pending (Gemini quota) | Keeps docs aligned with current CLI behavior |
+| 20 | PR-T | Add nightly static security scan to CI | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Adds `bandit` scan over CLI + core modules |
+| 21 | PR-U | Add package entry points for installed CLI commands | `pyproject.toml`, `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds `whisper-batch` and `whisperbatch` console scripts |
+| 22 | PR-V | Make setup install package in editable mode | `setup.sh` | Done | Pending (Gemini quota) | Ensures console scripts are available after setup |
+| 23 | PR-W | Add CLI argument handling regression tests | `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds coverage for `--help` and invalid argument behavior |
+| 24 | PR-X | Remove leftover GUI dead paths (model progress + elapsed-file timer state) | `transcribe_gui.py` | Done | Pending (Gemini quota) | Simplifies queue message flow and drops no-op time-estimate/progress pathways |
+| 25 | PR-Y | Refactor duplicated GUI ffprobe checks into shared helper | `transcribe_gui.py` | Done | Pending (Gemini quota) | Reduces duplicate audio-duration probing logic in file validation and processing |
+| 26 | PR-Z | Tighten GUI audio validation and row insertion consistency | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds filename context to invalid audio-duration errors, removes unreachable exception handling, and consolidates file-row insertion logic |
+| 27 | PR-AA | Add PR CI lint check | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Adds `ruff` check to PR CI for fast quality feedback before merge |
+| 28 | PR-AC | Remove dead GUI progress UI path | `transcribe_gui.py` | Done | Pending (Gemini quota) | Removes hidden progress widgets and queue paths now that progress tracking is not surfaced |
+| 29 | PR-AD | Add exponential retry backoff and CLI override control | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds configurable retry backoff multiplier and coverage for retry delay growth under transient failures |
+| 30 | PR-AE | Shift heavy security scans to nightly CI | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Keeps PR checks fast and runs `bandit`/`pip-audit` only in scheduled/manual nightly checks |
+| 31 | PR-AF | Align CLI model argument choices with shared model constants | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Uses `SUPPORTED_MODELS` in CLI parser and validates all supported model values in tests |
+| 32 | PR-AG | Add coverage for output write exceptions in batch processing | `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Ensures write-path exceptions are counted as failed transcriptions and surfaced as failed summaries |
+| 33 | PR-AH | Expand nightly Python compatibility matrix to 3.13 | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Aligns nightly matrix with documented supported Python versions |
+| 34 | PR-AI | Add GUI progress metrics label and failed/throughput counters | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds real-time progress, failed count, and throughput updates in GUI status panel |
+| 35 | PR-AJ | Add GUI overwrite toggle and skip-existing output behavior | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds per-run overwrite control with explicit default skip behavior for existing transcription outputs |
+| 36 | PR-AK | Persist per-item GUI transcription metadata for reproducibility | `transcribe_gui.py` | Done | Pending (Gemini quota) | Writes `.metadata.json` sidecar files containing model/timestamps/overwrite options for each processed file |
+| 37 | PR-AL | Add `.whisperbatch` config support and CLI output metadata sidecars | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds automatic `.whisperbatch` config discovery with explicit CLI override and writes per-output metadata JSON files |
+| 38 | PR-AM | Add resume-mode support using metadata for interrupted batch runs | `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds `--resume`/`resume` support to skip matching completed outputs in CLI and GUI when metadata indicates prior completion |
+| 39 | PR-AO | Normalize metadata sidecar compatibility + overwrite-resume precedence across CLI + GUI | `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_transcribe_audio.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Shared metadata helpers now keep legacy resume reads, always write new-style sidecars, and give overwrite precedence over resume skipping |
+| 40 | PR-AP | Add GUI folder import support with recursive scan and dedupe | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds recursive folder selection for supported media, duplicate path filtering, and shared file-add validation for both file and folder inputs |
+| 41 | PR-AQ | Share output format constants in `whisper_batch_core` | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py` | Done | Pending (Gemini quota) | Consolidates `SUPPORTED_OUTPUT_FORMATS` as a shared constant used by CLI validation and parser choices |
+| 42 | PR-AR | Add `--max-workers` concurrency intent flag (single-worker default) | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds concurrency configuration surface, validation, and merge strategy placeholder while preserving current single-thread behavior |
+| 43 | PR-AS | Document `--max-workers` and add config validation tests | `README.md`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds docs and tests for config-driven `max_workers` and invalid max-workers config handling |
+| 44 | PR-AT | Add post-process hook CLI/config support | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending | Adds `--postprocess-cmd` and `.whisperbatch` `postprocess_command` support with hook execution and failure behavior |
+| 45 | PR-AU | Add export bundle command | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending | Adds `--export-bundle` and config `export_bundle` to package outputs and `run_summary.json` into a zip archive |
+| 46 | PR-AV | Add optional language/task preset controls | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending | Adds `--language`/`--task` and config equivalents, with metadata passthrough to transcription calls |
+| 47 | PR-AW | Add language and speaker profile presets | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds `--language-profile` and `--speaker-profile` with profile definitions in `.whisperbatch` |
+| 48 | PR-AX | Fix profile model override to feed runtime model_name (with CLI precedence) | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Ensures `model` in profiles is applied as execution model, and CLI `--model` still wins |
+| 49 | PR-AY | Ensure resume honors metadata mismatch before overwrite-skipping | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Reorders resume/overwrite checks so stale outputs are retried when resume is enabled and overwrite is disabled |
+| 50 | PR-BB | Stabilize processing order for case-variant filenames | `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Sorts supported files deterministically with stable tie-breakers for case-sensitive filesystem variation |
+| 51 | PR-BD | Stabilize export bundle file ordering with deterministic case-variant handling | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Applies stable tie-breakers to ZIP export file ordering to avoid nondeterministic ordering in case-variant path collisions |
+| 52 | PR-BE | Align GUI default model with CLI default model behavior | `transcribe_gui.py` | Done | Pending (Gemini quota) | Sets GUI initial model selection to `large-v3` to match CLI/default runtime baseline |
+| 53 | PR-BF | Align GUI timestamps default with CLI behavior | `transcribe_gui.py` | Done | Pending (Gemini quota) | Sets GUI default timestamp toggle to enabled to match CLI include-timestamps default |
+| 54 | PR-BG | Keep GUI default model selection tied to model constant order | `transcribe_gui.py` | Done | Pending (Gemini quota) | Uses `SUPPORTED_MODELS[-1]` for GUI default to preserve “largest/most-capable” default if model list changes |
+| 55 | PR-BH | Add development dependency manifest for tooling | `requirements-dev.txt`, `README.md` | Done | Pending (Gemini quota) | Adds a dedicated dev requirements file and documents local install for lint/security/CI tooling |
+| 56 | PR-BI | Standardize CI dependency installation via requirements-dev | `.github/workflows/ci.yml`, `requirements-dev.txt` | Done | Pending (Gemini quota) | Installs runtime + dev tooling from one manifest and removes inline dependency bootstrapping in CI steps |
+| 57 | PR-BJ | Add pip-tools to dev manifest for reproducible tooling workflows | `requirements-dev.txt`, `README.md` | Done | Pending (Gemini quota) | Adds `pip-tools` to dev install path and documents lockfile workflow guidance |
+| 58 | PR-BK | Add actionable model-load failure context for cache/download issues | `whisper_batch_core/core.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Wraps model initialization failures with actionable guidance and adds regression test coverage |
+| 59 | PR-BL | Add model-load failure playbook in docs | `README.md` | Done | Pending (Gemini quota) | Adds concise incident-response guidance for model cache/download corruption scenarios |
+| 60 | PR-BM | Add nightly formatting checks to CI | `.github/workflows/ci.yml` | Done | Pending (Gemini quota) | Adds `ruff format --check` in nightly pipeline to enforce style baseline without blocking PR flow |
+| 61 | PR-BN | Add unit tests for CI secret scanner | `tests/test_ci_secret_scan.py` | Done | Pending (Gemini quota) | Covers ignore rules, pattern match behavior, and CLI return status for clean vs. secret-detected trees |
+| 62 | PR-BO | Disambiguate output filenames for colliding stems | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Ensures files like `speech.mp3` and `speech.wav` no longer share the same output filename |
+| 63 | PR-BP | Add runtime Python version guard and policy docs | `transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Rejects unsupported Python at CLI startup and documents the explicit 3.9–3.13 support policy |
+| 64 | PR-BQ | Add optional Python post-processing plugin hook | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds `--postprocess-plugin` and `.whisperbatch` `postprocess_plugin` support with importable callable contract |
+| 65 | PR-BR | Add plugin contract docs and sample post-process plugin module | `README.md`, `docs/postprocess-plugin-contract.md`, `sample_postprocess_plugins.py`, `tests/test_postprocess_plugins.py` | Done | Pending (Gemini quota) | Adds reference documentation, sample plugins, and tests for `--postprocess-plugin` |
+| 66 | PR-BS | Add postmortem failure logging for failed files | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `failures` summary entries and a JSONL postmortem log for failed file runs |
+| 67 | PR-BT | Prepare async/transcoding follow-up PR for Stage 4 task 7 | `docs/async-transcription-roadmap.md` | Done | Pending (Gemini quota) | Expands the async roadmap with concrete, acceptance-checked PR scoping for staged async worker execution |
+| 68 | PR-BU | Design optional cloud destination integration | `docs/cloud-destination-integration-plan.md` | Done | Pending (Gemini quota) | Defines provider-agnostic upload abstraction and staged rollout for optional S3/GCS cloud destinations |
+| 69 | PR-BV | Design shared output folder mode with provenance metadata | `docs/team-shared-output-folder-mode-plan.md` | Done | Pending (Gemini quota) | Adds a multi-stage design for centralized output roots and immutable provenance tracking with explicit overwrite/safety constraints |
+| 70 | PR-BW | Design multilingual translation presets for one-click workflow | `docs/translation-presets-integration-plan.md` | Done | Pending (Gemini quota) | Adds staged model/profile resolution and manifest-safe translation preset behavior design |
+| 71 | PR-BX | Design transcript diff and correction review mode | `docs/transcript-diff-review-plan.md` | Done | Pending (Gemini quota) | Proposes immutable transcript + mutable review patch storage and idempotent review replay |
+| 72 | PR-BY | Design speaker-segmentation with optional speaker tagging | `docs/speaker-segmentation-plan.md` | Done | Pending (Gemini quota) | Adds staged plan for safe feature-gated speaker attribution and output schema extension |
+| 73 | PR-BZ | Design remote model backend abstraction | `docs/remote-model-backend-abstraction-plan.md` | Done | Pending (Gemini quota) | Defines adapter contract and phased rollout for local + remote transcription backends without changing defaults |
+| 74 | PR-CA | Add stable async task envelope and deterministic queue builder | `whisper_batch_core/async_batch.py`, `transcribe_audio.py`, `tests/test_async_batch.py` | Done | Pending (Gemini quota) | Adds `TranscriptionTask` + deterministic queue helper used by directory processing as groundwork for async execution |
+| 75 | PR-CB | Add async execution policy guardrails and explicit rationale messaging | `whisper_batch_core/async_batch.py`, `transcribe_audio.py`, `tests/test_async_batch.py`, `whisper_batch_core/__init__.py` | Done | Pending (Gemini quota) | Adds async-readiness policy checks and consistent status messaging when multi-worker runs are intentionally not yet supported |
+| 76 | PR-CC | Add per-segment annotation export (`.csv` / `.jsonl`) for downstream indexing | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds `--annotation-export` support with CSV/JSONL output and summary metadata for segment-level index-friendly exports |
+| 77 | PR-CD | Surface CLI model cache/download status and load timing | `transcribe_audio.py`, `tests/test_transcribe_audio.py`, `README.md` | Done | Pending (Gemini quota) | Adds explicit cache-hit/miss detection, cache path messaging, and model load timing for first-run transparency |
+| 78 | PR-CE | Share model cache path helpers in `whisper_batch_core` for CLI and GUI | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_core.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Centralizes model cache location resolution and cache-presence checks for both CLI and GUI and updates tests accordingly |
+| 79 | PR-CF | Add GUI model cache/download status + load timing | `transcribe_gui.py` | Done | Pending | Adds shared cache-path detection messages and per-run timing feedback for GUI model loading |
+| 80 | PR-CG | Align cache-clear docs with env-aware cache root resolution | `README.md`, `tests/test_core.py` | Done | Pending | Expands troubleshooting docs and adds Windows/fallback cache-root tests in core helper coverage |
+| 81 | PR-CH | Normalize model-cache env roots in `whisper_batch_core` helpers | `whisper_batch_core/core.py`, `tests/test_core.py` | Done | Pending | Expands cache-root helper to expand env/user paths for HF cache variables and adds regression test coverage |
+| 82 | PR-CJ | Centralize CLI model default constant | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Introduces `DEFAULT_MODEL_NAME` for CLI model defaults, runtime signatures, and regression tests for source-of-truth behavior |
+| 83 | PR-CK | Share default model constant in core and GUI | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `transcribe_gui.py` | Done | Pending (Gemini quota) | Exports `DEFAULT_MODEL_NAME` from core and removes hardcoded fallback model literals from CLI/GUI defaults |
+| 84 | PR-CL | Centralize `SUPPORTED_TASKS` in `whisper_batch_core` | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `tests/test_core.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Shares supported task set with CLI validation/help, and keeps task options anchored to one source of truth |
+| 85 | PR-CM | Derive CLI help text from shared constants | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Uses shared output/task constants for help messages to avoid drift as constants evolve |
+| 86 | PR-CN | Centralize default task constant usage in core and CLI | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `tests/test_core.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Reuses `DEFAULT_TASK_NAME` in core/CLI defaults and test assertions to prevent drift if the default task changes |
+| 87 | PR-CO | Use shared default task constant in GUI transcription path | `transcribe_gui.py` | Done | Pending (Gemini quota) | Reuses `DEFAULT_TASK_NAME` for GUI transcribe_segments calls to keep task behavior aligned with CLI/default constants |
+| 88 | PR-CY | Centralize default output format constant and defaults usage | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `whisper_batch_core/async_batch.py`, `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_async_batch.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Introduces `DEFAULT_OUTPUT_FORMAT` and applies it consistently across CLI defaults, async task defaults, runtime signatures, and GUI metadata/output behavior |
+| 89 | PR-CZ | Fix output-format timestamp handling path in transcription loop | `transcribe_audio.py`, `whisper_batch_core/core.py`, `tests/test_transcribe_audio.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Ensures `include_timestamps` is correctly propagated for each output format, aligns resume behavior for subtitle outputs, and centralizes formatter handling helpers |
+| 90 | PR-DA | Align resume overwrite precedence with stale metadata behavior | `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Allows stale/invalid metadata to trigger reprocessing under resume mode, even when overwrite is disabled, while preserving skip semantics for exact matches |
+| 91 | PR-DD | Add GUI output format selection and rendering parity | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds GUI output-format chooser, output renderer dispatch, and output/metadata handling aligned with format-specific timestamp/resume behavior |
+| 92 | PR-DE | Add unit tests for GUI output-format renderer helpers | `tests/test_transcribe_gui_output_formats.py` | Done | Pending (Gemini quota) | Adds focused tests for renderer dispatch, timestamp formatting, subtitle rendering, and resume-safe timestamp defaults |
 
-### Stage 5: Product vision
-1. Add post-process plugin discovery and built-in plugin gallery.
-2. Add optional translation and diarization output modes.
-3. Add speaker-segment tagging and export-friendly speaker labels.
-4. Add transcript review mode with inline corrections and re-export.
-5. Add alignment with SRT/VTT timestamp export and styling options.
-6. Add API endpoint mode (small local HTTP service).
-7. Add batch scheduling by filename pattern and date range.
-8. Add configurable profile presets (speed, accuracy, memory).
-9. Add cloud-backed queue mode for long-running transcriptions.
-10. Add first-class support for multi-language batch metadata and QA reporting.
+### PR-E execution notes
+
+- Added GitHub Actions workflow with two jobs:
+  - `pr-checks`: lightweight checks for PR/push (`3.9`/`3.12`) including tests + syntax validation.
+  - `nightly-checks`: scheduled weekly run (`Mon 03:00 UTC`) with broader matrix (`3.9`-`3.13`) and CLI smoke coverage.
+
+## Stage flow
+
+Detailed stage definitions are tracked in [do-work-queue.md](/Users/sba/Documents/Developer/NotActive/WhisperBatch/do-work-queue.md).
+That file is now the canonical roadmap source and should be treated as the source of truth for execution order.
+
+## Repeat cadence (as requested)
+
+For stages after merge:
+
+- Re-run assessment pass (bug/edge cases, security, CI adequacy, dead code, simplification), then continue.
+- Document every notable finding and add a follow-up PR task.
