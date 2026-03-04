@@ -34,10 +34,10 @@ from whisper_batch_core.async_batch import (
     evaluate_async_execution_policy,
 )
 SUPPORTED_PYTHON_MINIMUM = (3, 9)
-SUPPORTED_PYTHON_MAXIMUM = (3, 13)
 POSTMORTEM_LOG_PATH = "postmortem.jsonl"
 SUPPORTED_PROFILE_OPTIONS = {
     "model",
+    "model_name",
     "include_timestamps",
     "retries",
     "retry_delay",
@@ -83,14 +83,7 @@ def _validate_runtime_python_version() -> None:
         current = f"{version[0]}.{version[1]}"
         raise RuntimeError(
             f"Unsupported Python version {current}; this tool supports Python "
-            f"{minimum}+ up to 3.13."
-        )
-    if version > SUPPORTED_PYTHON_MAXIMUM:
-        maximum = f"{SUPPORTED_PYTHON_MAXIMUM[0]}.{SUPPORTED_PYTHON_MAXIMUM[1]}"
-        current = f"{version[0]}.{version[1]}"
-        raise RuntimeError(
-            f"Unsupported Python version {current}; this tool currently validates "
-            f"only up to Python {maximum}."
+            f"{minimum}+."
         )
 
 
@@ -666,6 +659,38 @@ def _resolve_options(directory_path, args):
     if args.resume is not None:
         merged["resume"] = args.resume
 
+    # Explicit CLI flags always take precedence over selected profiles.
+    if args.model is not None:
+        merged["model_name"] = args.model
+    if args.include_timestamps is not None:
+        merged["include_timestamps"] = args.include_timestamps
+    if args.overwrite is not None:
+        merged["overwrite"] = args.overwrite
+    if args.retries is not None:
+        merged["retries"] = args.retries
+    if args.retry_delay is not None:
+        merged["retry_delay"] = args.retry_delay
+    if args.retry_backoff is not None:
+        merged["retry_backoff"] = args.retry_backoff
+    if args.output_format is not None:
+        merged["output_format"] = args.output_format
+    if args.postprocess_command is not None:
+        merged["postprocess_command"] = args.postprocess_command
+    if args.postprocess_plugin is not None:
+        merged["postprocess_plugin"] = args.postprocess_plugin.strip()
+    if args.max_workers is not None:
+        merged["max_workers"] = args.max_workers
+    if args.export_bundle is not None:
+        merged["export_bundle"] = args.export_bundle
+    if args.language is not None:
+        merged["language"] = args.language
+    if args.task is not None:
+        merged["task"] = args.task
+    if args.annotation_export is not None:
+        merged["annotation_export"] = args.annotation_export
+    if args.resume is not None:
+        merged["resume"] = args.resume
+
     _validate_cli_args(
         directory_path=directory_path,
         model_name=merged["model_name"],
@@ -871,6 +896,7 @@ def process_directory(
         "failed": 0,
         "skipped": 0,
         "failures": [],
+        "output_format": output_format,
         "max_workers": max_workers,
         "annotation_export": None,
         "annotation_records": 0,
@@ -1216,10 +1242,7 @@ def main():
         "--task",
         choices=sorted(SUPPORTED_TASKS),
         default=None,
-        help=(
-            f"Whisper task to run. Supported values: {', '.join(sorted(SUPPORTED_TASKS))}. "
-            f"(default: {DEFAULT_TASK_NAME})"
-        )
+        help=f"Whisper task to run. Supported values: {', '.join(sorted(SUPPORTED_TASKS))}."
     )
     parser.add_argument(
         "--annotation-export",
@@ -1236,13 +1259,12 @@ def main():
 
     args = parser.parse_args()
 
-    options = _resolve_options(args.directory, args)
-
     try:
+        options = _resolve_options(args.directory, args)
         summary = process_directory(
-            args.directory,
-            options["model_name"],
-            options["include_timestamps"],
+            directory_path=args.directory,
+            model_name=options["model_name"],
+            include_timestamps=options["include_timestamps"],
             overwrite=options["overwrite"],
             resume=options["resume"],
             retries=options["retries"],

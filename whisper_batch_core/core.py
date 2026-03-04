@@ -63,12 +63,26 @@ def _normalize_cache_root(raw_root: str) -> Path:
     return Path(os.path.expandvars(raw_root)).expanduser()
 
 
+def _append_path_parts(root: Path, *parts: str) -> Path:
+    """Append path segments without relying on Path division under mocked os.name."""
+    combined = str(root)
+    for part in parts:
+        segment = str(part).strip("/\\")
+        if not segment:
+            continue
+        if combined.endswith(("/", "\\")):
+            combined = f"{combined}{segment}"
+        else:
+            combined = f"{combined}/{segment}"
+    return Path(combined)
+
+
 def get_model_cache_root() -> Path:
     """Return the base Hugging Face cache root used by faster-whisper."""
     hf_home = os.environ.get("HF_HOME")
     if hf_home and hf_home.strip():
         hf_home = hf_home.strip()
-        return _normalize_cache_root(hf_home) / "hub"
+        return _append_path_parts(_normalize_cache_root(hf_home), "hub")
 
     huggingface_hub_cache = os.environ.get("HUGGINGFACE_HUB_CACHE")
     if huggingface_hub_cache and huggingface_hub_cache.strip():
@@ -78,22 +92,29 @@ def get_model_cache_root() -> Path:
     xdg_cache = os.environ.get("XDG_CACHE_HOME")
     if xdg_cache and xdg_cache.strip():
         xdg_cache = xdg_cache.strip()
-        return _normalize_cache_root(xdg_cache) / "huggingface" / "hub"
+        return _append_path_parts(_normalize_cache_root(xdg_cache), "huggingface", "hub")
 
     if os.name == "nt":
         local_app_data = os.environ.get("LOCALAPPDATA")
         if local_app_data and local_app_data.strip():
             local_app_data = local_app_data.strip()
-            return _normalize_cache_root(local_app_data) / "huggingface" / "hub"
+            return _append_path_parts(
+                _normalize_cache_root(local_app_data),
+                "huggingface",
+                "hub",
+            )
 
-        return Path.home() / "AppData" / "Local" / "huggingface" / "hub"
+        return _append_path_parts(Path.home(), "AppData", "Local", "huggingface", "hub")
 
-    return Path.home() / ".cache" / "huggingface" / "hub"
+    return _append_path_parts(Path.home(), ".cache", "huggingface", "hub")
 
 
 def get_model_cache_dir(model_name: str) -> Path:
     """Return expected model cache directory path for a faster-whisper model."""
-    return get_model_cache_root() / f"models--Systran--faster-whisper-{model_name}"
+    return _append_path_parts(
+        get_model_cache_root(),
+        f"models--Systran--faster-whisper-{model_name}",
+    )
 
 
 def is_model_cached(model_name: str) -> bool:
@@ -213,8 +234,8 @@ def should_skip_output_due_to_metadata(
         "output_path": metadata.get("output_path", metadata.get("output_file")),
         "model": metadata.get("model"),
         "include_timestamps": metadata.get("include_timestamps"),
-        "language": metadata.get("language"),
-        "task": metadata.get("task"),
+        "language": metadata.get("language", None),
+        "task": metadata.get("task", task),
         "output_format": metadata.get("output_format", DEFAULT_OUTPUT_FORMAT),
     }
 

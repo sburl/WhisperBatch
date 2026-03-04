@@ -300,7 +300,7 @@ class TestCoreHelpers(unittest.TestCase):
         ), patch("whisper_batch_core.core.os.name", "nt"):
             self.assertEqual(
                 get_model_cache_root(),
-                Path("/custom/localappdata") / "huggingface" / "hub",
+                Path("/custom/localappdata/huggingface/hub"),
             )
 
     def test_get_model_cache_root_falls_back_to_default_windows_profile(self):
@@ -311,7 +311,7 @@ class TestCoreHelpers(unittest.TestCase):
         ), patch("whisper_batch_core.core.os.name", "nt"), patch("whisper_batch_core.core.Path.home", return_value=Path("/custom/home")):
             self.assertEqual(
                 get_model_cache_root(),
-                Path("/custom/home") / "AppData" / "Local" / "huggingface" / "hub",
+                Path("/custom/home/AppData/Local/huggingface/hub"),
             )
 
     def test_get_model_cache_dir_builds_faster_whisper_path(self):

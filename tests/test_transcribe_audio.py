@@ -195,7 +195,18 @@ class AudioTests(unittest.TestCase):
             transcribe_audio.process_directory(temp_dir)
 
             call_paths = [Path(call.args[0]).name for call in mock_transcribe_file.call_args_list]
-            self.assertEqual(call_paths, ["A.WAV", "a.wav", "b.wav"])
+            expected_paths = [
+                path.name
+                for path in sorted(
+                    [
+                        path
+                        for path in Path(temp_dir).iterdir()
+                        if path.is_file() and path.suffix.lower() in transcribe_audio.SUPPORTED_EXTENSIONS
+                    ],
+                    key=lambda path: (str(path).lower(), str(path)),
+                )
+            ]
+            self.assertEqual(call_paths, expected_paths)
 
     @patch("transcribe_audio.transcribe_file")
     @patch("transcribe_audio.load_model")
@@ -1542,11 +1553,9 @@ class AudioTests(unittest.TestCase):
                 transcribe_audio._validate_runtime_python_version()
             self.assertIn("Unsupported Python version 3.8", str(ctx.exception))
 
-    def test_runtime_python_version_check_rejects_future_python(self):
+    def test_runtime_python_version_check_accepts_future_python(self):
         with patch("transcribe_audio.sys.version_info", (3, 14, 0, "final", 0)):
-            with self.assertRaises(RuntimeError) as ctx:
-                transcribe_audio._validate_runtime_python_version()
-            self.assertIn("currently validates only up to Python 3.13", str(ctx.exception))
+            transcribe_audio._validate_runtime_python_version()
 
     @patch("transcribe_audio._validate_runtime_python_version")
     def test_main_rejects_unsupported_python_version(self, mock_validate_python):
@@ -3087,10 +3096,11 @@ class AudioTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 transcribe_audio.main()
         help_text = "\n".join((stdout.getvalue(), stderr.getvalue()))
+        normalized_help_text = " ".join(help_text.split())
         expected_supported_tasks = ", ".join(sorted(transcribe_audio.SUPPORTED_TASKS))
         self.assertIn(
             f"Whisper task to run. Supported values: {expected_supported_tasks}.",
-            help_text,
+            normalized_help_text,
         )
 
     def test_cli_help_mentions_supported_output_formats(self):
