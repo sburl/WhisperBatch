@@ -33,14 +33,34 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+    if not directory.is_dir():
+        raise ValueError(f"Not a directory: {directory_path}")
+
+    directory_entries = list(directory.iterdir())
+    media_files = sorted(
+        [entry for entry in directory_entries if entry.is_file() and entry.suffix.lower() in audio_extensions]
+    )
+    if not media_files:
+        summary = {
+            "processed": 0,
+            "success": 0,
+            "failed": 0,
+            "skipped": len(directory_entries),
+            "elapsed_seconds": 0.0,
+        }
+        print("No supported media files found in the directory.")
+        print(
+            "\nDirectory processing complete. "
+            f"{summary['success']} succeeded, {summary['failed']} failed, "
+            f"{summary['skipped']} skipped, {summary['elapsed_seconds']}s"
+        )
+        return summary
+
+    start_time = time.time()
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
     model = load_model(model_name, device="auto")
-    directory_entries = list(directory.iterdir())
-    media_files = [entry for entry in directory_entries if entry.suffix.lower() in audio_extensions]
-
-    start_time = time.time()
     total_processed = 0
     failed = 0
     
