@@ -7,7 +7,6 @@ from transcribe_gui import (
     _render_output_text,
     _render_srt,
     _render_vtt,
-    _result_to_json_payload,
 )
 from whisper_batch_core import DEFAULT_OUTPUT_FORMAT, render_plain_text, render_timestamped_text
 
