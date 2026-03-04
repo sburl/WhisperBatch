@@ -54,6 +54,13 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
             assert payload.startswith("WEBVTT\n\n00:00:00.100 --> 00:00:01.200")
 
 
+def test_effective_include_timestamps_for_output_format():
+    assert transcribe_audio._effective_include_timestamps("srt", False) is True
+    assert transcribe_audio._effective_include_timestamps("vtt", False) is True
+    assert transcribe_audio._effective_include_timestamps("txt", False) is False
+    assert transcribe_audio._effective_include_timestamps("json", True) is True
+
+
 def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
     (tmp_path / "good.wav").write_text("x", encoding="utf-8")
     (tmp_path / "bad.mp3").write_text("x", encoding="utf-8")
