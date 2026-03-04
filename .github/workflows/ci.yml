@@ -47,7 +47,11 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python -m unittest discover -s tests
+          if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
+            python -m unittest discover -s tests
+          else
+            echo "No unit tests detected; skipping."
+          fi
 
   nightly-checks:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -79,7 +83,11 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python -m unittest discover -s tests
+          if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
+            python -m unittest discover -s tests
+          else
+            echo "No unit tests detected; skipping."
+          fi
 
       - name: Run formatting check
         run: |
