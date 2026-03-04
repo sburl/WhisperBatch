@@ -610,34 +610,6 @@ def _resolve_options(directory_path, args):
         profiles_map_label="speaker_profiles",
     )
 
-    if args.model is not None:
-        merged["model_name"] = args.model
-    if args.include_timestamps is not None:
-        merged["include_timestamps"] = args.include_timestamps
-    if args.overwrite is not None:
-        merged["overwrite"] = args.overwrite
-    if args.retries is not None:
-        merged["retries"] = args.retries
-    if args.retry_delay is not None:
-        merged["retry_delay"] = args.retry_delay
-    if args.retry_backoff is not None:
-        merged["retry_backoff"] = args.retry_backoff
-    if args.output_format is not None:
-        merged["output_format"] = args.output_format
-    if args.postprocess_command is not None:
-        merged["postprocess_command"] = args.postprocess_command
-    if args.postprocess_plugin is not None:
-        merged["postprocess_plugin"] = args.postprocess_plugin.strip()
-    if args.max_workers is not None:
-        merged["max_workers"] = args.max_workers
-    if args.export_bundle is not None:
-        merged["export_bundle"] = args.export_bundle
-    if args.language is not None:
-        merged["language"] = args.language
-    if args.task is not None:
-        merged["task"] = args.task
-    if args.annotation_export is not None:
-        merged["annotation_export"] = args.annotation_export
     if args.language_profile is not None:
         _apply_profile_selection(
             merged=merged,
@@ -656,8 +628,6 @@ def _resolve_options(directory_path, args):
             profiles_map_label="speaker_profiles",
         )
         merged["speaker_profile"] = args.speaker_profile
-    if args.resume is not None:
-        merged["resume"] = args.resume
 
     # Explicit CLI flags always take precedence over selected profiles.
     if args.model is not None:
