@@ -1,7 +1,7 @@
 # WhisperBatch
 
 **Created:** 2025-05-09-01-32
-**Last Updated:** 2026-01-09-17-49
+**Last Updated:** 2026-03-04-12-00
 
 A Python package and GUI application for transcribing audio files using [faster-whisper](https://github.com/Systran/faster-whisper). Use the GUI for batch processing with a user-friendly interface, or install the package to use the transcription API in your own Python projects.
 
@@ -33,7 +33,7 @@ python transcribe_gui.py
 ---
 
 ## Apple-Silicon notes (M-series Macs)
-1. The setup script auto-detects arm64 and ensures the **native** PyTorch CPU wheel is installed (`torch==2.1.0`).
+1. The setup script auto-detects arm64 and ensures the **native** PyTorch CPU wheel is installed (`torch==2.4.1`).
 2. When you choose **Device = Auto** (default) the program now *automatically falls back* to **CPU + int8** compute-type. This avoids current CTranslate2/Metal seg-faults while still running ~2× real-time on an M1/M2/M3.
 3. Once a stable CTranslate2 Metal backend is released the GUI will switch back to GPU automatically.
 
@@ -44,7 +44,7 @@ macOS 26 (2601) or later required, have instead 16 (1601) !
 Fix with:
 ```bash
 pip uninstall -y torch
-pip install --no-cache-dir --force-reinstall torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+pip install --no-cache-dir --force-reinstall torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
 ```
 
 ---
