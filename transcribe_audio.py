@@ -114,6 +114,33 @@ def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, 
     )
     return _render_output_text(result.segments, output_format, include_timestamps)
 
+
+def _transcribe_with_retries(
+    file_path,
+    model_name,
+    include_timestamps,
+    model,
+    output_format,
+    max_retries,
+):
+    attempts = 0
+    while True:
+        try:
+            return transcribe_audio(
+                file_path,
+                model_name,
+                include_timestamps,
+                model=model,
+                output_format=output_format,
+            )
+        except Exception as exc:
+            attempts += 1
+            if attempts > max_retries:
+                raise
+            print(
+                f"Retrying {file_path.name}: attempt {attempts}/{max_retries} after error: {exc}"
+            )
+
 def process_directory(
     directory_path,
     model_name="large-v3",
@@ -121,6 +148,7 @@ def process_directory(
     output_format="txt",
     overwrite=False,
     summary_json=False,
+    max_retries=0,
 ):
     """Process all supported audio/video files in the given directory"""
     directory = Path(directory_path)
@@ -129,6 +157,8 @@ def process_directory(
         raise ValueError(f"Directory not found: {directory_path}")
     if not directory.is_dir():
         raise ValueError(f"Not a directory: {directory_path}")
+    if max_retries < 0:
+        raise ValueError(f"max_retries must be >= 0: {max_retries}")
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
@@ -160,12 +190,13 @@ def process_directory(
                 summary["skipped"] += 1
                 continue
 
-            transcription = transcribe_audio(
+            transcription = _transcribe_with_retries(
                 file_path,
                 model_name,
                 include_timestamps,
-                model=model,
                 output_format=output_format,
+                model=model,
+                max_retries=max_retries,
             )
             
             # Save transcription to file
@@ -217,6 +248,12 @@ def main():
         action="store_true",
         help="Emit summary as a single JSON object",
     )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=0,
+        help="Maximum retries for transient transcription failures (default: 0)",
+    )
     
     args = parser.parse_args()
     
@@ -228,6 +265,7 @@ def main():
             args.output_format,
             overwrite=args.overwrite,
             summary_json=args.summary_json,
+            max_retries=args.max_retries,
         )
     except Exception as e:
         print(f"Error: {str(e)}")

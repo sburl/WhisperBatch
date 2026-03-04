@@ -179,3 +179,41 @@ def test_process_directory_prints_summary_json_when_requested(tmp_path, monkeypa
     assert summary["failed"] == 0
     assert summary["skipped"] == 0
     assert "elapsed_seconds" in summary
+
+
+def test_process_directory_retries_transient_failures_until_success(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+
+    attempts = []
+
+    def flaky_transcribe_file(audio_path, **kwargs):
+        attempts.append(audio_path)
+        if len(attempts) < 3:
+            raise RuntimeError("temporary failure")
+        return _FakeTranscriptionResult("ok", [TranscriptSegment(start=0, end=0, text="ok")])
+
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", flaky_transcribe_file)
+
+    summary = transcribe_audio.process_directory(str(tmp_path), max_retries=3)
+
+    assert summary["total"] == 1
+    assert summary["success"] == 1
+    assert summary["failed"] == 0
+    assert len(attempts) == 3
+
+
+def test_process_directory_retries_exhausts_and_marks_failed(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        transcribe_audio,
+        "transcribe_file",
+        lambda audio_path, **kwargs: (_ for _ in ()).throw(RuntimeError("still failing")),
+    )
+
+    summary = transcribe_audio.process_directory(str(tmp_path), max_retries=1)
+
+    assert summary["total"] == 1
+    assert summary["success"] == 0
+    assert summary["failed"] == 1
