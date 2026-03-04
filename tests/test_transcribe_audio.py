@@ -246,6 +246,15 @@ def test_process_directory_rejects_negative_max_retries(tmp_path):
         transcribe_audio.process_directory(str(tmp_path), max_retries=-1)
 
 
+def test_process_directory_rejects_unsupported_model_name(tmp_path, monkeypatch):
+    (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
+
+    monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("load_model should not be called")))
+
+    with pytest.raises(ValueError, match="Unsupported model"):
+        transcribe_audio.process_directory(str(tmp_path), model_name="invalid")
+
+
 def test_summary_json_no_retry_trace_when_not_verbose(tmp_path, monkeypatch, capsys):
     (tmp_path / "clip.wav").write_text("x", encoding="utf-8")
     monkeypatch.setattr(transcribe_audio, "load_model", lambda *_args, **_kwargs: object())
