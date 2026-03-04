@@ -1,5 +1,8 @@
 # Shared output folder mode with provenance metadata
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 Purpose: support a collaborative workflow where multiple projects write to one
 centralized transcript repository while keeping strict per-job provenance.
 

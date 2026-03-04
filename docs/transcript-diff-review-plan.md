@@ -1,5 +1,8 @@
 # Transcript diff and correction review mode
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 Purpose: prepare Big Vision task 5, a user-facing workflow for post-transcription review.
 
 ## Problem statement

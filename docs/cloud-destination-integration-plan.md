@@ -1,5 +1,8 @@
 # Cloud destination upload integration plan
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 Purpose: define an incremental path for Big Vision task 2 (optional cloud upload integration)
 that keeps current behavior stable while introducing a testable abstraction.
 

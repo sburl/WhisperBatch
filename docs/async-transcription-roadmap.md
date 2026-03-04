@@ -1,5 +1,8 @@
 # WhisperBatch asynchronous transcription roadmap
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 This is a follow-up exploration plan for Stage 4 task 7 (`max-workers` intent).
 The current CLI and GUI currently keep transcription single-threaded and set aside
 `max-workers` as a future knob. This document defines a controlled way to evolve

@@ -1,5 +1,8 @@
 # Multilingual translation preset workflow (one-click profile)
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 This document prepares Big Vision task 4 (translation profile presets).
 
 ## Goal

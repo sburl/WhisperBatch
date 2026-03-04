@@ -1,5 +1,8 @@
 # Speaker segmentation and optional speaker tagging prototype
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 Purpose: define a small scoped path to Big Vision task 6.
 
 ## Immediate intent

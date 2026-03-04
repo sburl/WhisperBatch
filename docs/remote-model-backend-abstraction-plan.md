@@ -1,5 +1,8 @@
 # Remote model backend abstraction plan
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 Purpose: prepare Big Vision task 7 (`local whisper + API fallback`).
 
 ## Goal

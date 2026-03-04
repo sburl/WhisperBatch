@@ -1,5 +1,8 @@
 # WhisperBatch post-process plugin contract
 
+**Created:** 2026-03-03-17-23
+**Last Updated:** 2026-03-03-17-23
+
 This document describes the Python post-processing plugin interface introduced by
 `--postprocess-plugin`.
 
