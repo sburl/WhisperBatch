@@ -9,6 +9,20 @@ from whisper_batch_core import (
     transcribe_file,
 )
 
+
+def _output_transcript_path(output_dir: Path, stem: str) -> Path:
+    """Return a deterministic, non-colliding transcript output path."""
+    candidate = output_dir / f"{stem}_transcription.txt"
+    if not candidate.exists():
+        return candidate
+
+    index = 1
+    while True:
+        candidate = output_dir / f"{stem}_{index}_transcription.txt"
+        if not candidate.exists():
+            return candidate
+        index += 1
+
 def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, model=None):
     """Transcribe audio file using faster-whisper"""
     # Allow caller to supply a pre-loaded model so we don't reload per file
@@ -49,7 +63,7 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
                 transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
                 
                 # Save transcription to file
-                output_file = output_dir / f"{file_path.stem}_transcription.txt"
+                output_file = _output_transcript_path(output_dir, file_path.stem)
                 with open(output_file, "w", encoding="utf-8") as f:
                     f.write(transcription)
                 print(f"Transcription saved to: {output_file}")
