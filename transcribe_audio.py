@@ -115,6 +115,8 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+    if not directory.is_dir():
+        raise ValueError(f"Not a directory: {directory_path}")
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
@@ -124,8 +126,18 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     output_dir = directory / "transcriptions"
     output_dir.mkdir(exist_ok=True)
     
+    supported_files = _collect_supported_files(directory)
+    total_candidates = len(supported_files)
+    total_entries = len([path for path in directory.iterdir() if path.is_file()])
+    summary = {
+        "total": total_candidates,
+        "success": 0,
+        "failed": 0,
+        "skipped": total_entries - total_candidates,
+    }
+
     # Process each audio file
-    for file_path in _collect_supported_files(directory):
+    for file_path in supported_files:
         print(f"\nProcessing: {file_path.name}")
         try:
             transcription = transcribe_audio(
@@ -141,9 +153,18 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(transcription)
             print(f"Transcription saved to: {output_file}")
+            summary["success"] += 1
                 
         except Exception as e:
             print(f"Error processing {file_path.name}: {str(e)}")
+            summary["failed"] += 1
+
+    print(
+        "Summary: "
+        f"success={summary['success']}, failed={summary['failed']}, "
+        f"skipped={summary['skipped']}, total={summary['total']}"
+    )
+    return summary
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")

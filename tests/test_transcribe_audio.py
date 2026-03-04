@@ -54,3 +54,23 @@ def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeyp
             assert payload.startswith("1\n00:00:000,100 --> 00:00:01,200")
         elif output_format == "vtt":
             assert payload.startswith("WEBVTT\n\n00:00:000.100 --> 00:00:01.200")
+
+
+def test_process_directory_reports_summary_with_skips(tmp_path, monkeypatch):
+    (tmp_path / "good.wav").write_text("x", encoding="utf-8")
+    (tmp_path / "bad.mp3").write_text("x", encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("ignore", encoding="utf-8")
+
+    def fake_load_model(*_, **__):
+        return object()
+
+    def fake_transcribe_file(audio_path, **kwargs):
+        if audio_path.endswith("bad.mp3"):
+            raise RuntimeError("boom")
+        return _FakeTranscriptionResult("ok", [TranscriptSegment(start=0, end=0, text="ok")])
+
+    monkeypatch.setattr(transcribe_audio, "load_model", fake_load_model)
+    monkeypatch.setattr(transcribe_audio, "transcribe_file", fake_transcribe_file)
+
+    summary = transcribe_audio.process_directory(str(tmp_path), output_format="txt")
+    assert summary == {"total": 2, "success": 1, "failed": 1, "skipped": 1}

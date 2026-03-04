@@ -42,7 +42,7 @@ Stage 1 task 5 (core helper edge-case tests) is covered by [PR-K](plan-and-pr-tr
 Stage 1 task 6 (dependency + secret scan in CI) is covered by [PR-J](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 7 (overwrite and output safety controls) is now covered by both [PR-L](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and [PR-AJ](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 1 task 3 (validation and actionable errors) is covered by [PR-M](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
-Stage 1 task 2 (CLI summary output) is covered by [PR-N](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
+Stage 1 task 2 (CLI summary output) is covered by [PR-N](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and now [PR-DI](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 1 task 4 (output format flags) is now covered by [PR-DG](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 1 (retry handling for transient failures) is now covered by [PR-AD](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 2 task 5 (machine-readable summary output) is covered by [PR-P](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
