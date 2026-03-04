@@ -2,6 +2,7 @@
 
 import argparse
 from pathlib import Path
+import time
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
@@ -36,26 +37,50 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
     model = load_model(model_name, device="auto")
+    directory_entries = list(directory.iterdir())
+    media_files = [entry for entry in directory_entries if entry.suffix.lower() in audio_extensions]
+
+    start_time = time.time()
+    total_processed = 0
+    failed = 0
     
     # Create output directory
     output_dir = directory / "transcriptions"
     output_dir.mkdir(exist_ok=True)
     
     # Process each audio file
-    for file_path in directory.glob("*"):
-        if file_path.suffix.lower() in audio_extensions:
-            print(f"\nProcessing: {file_path.name}")
-            try:
-                transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
-                
-                # Save transcription to file
-                output_file = output_dir / f"{file_path.stem}_transcription.txt"
-                with open(output_file, "w", encoding="utf-8") as f:
-                    f.write(transcription)
-                print(f"Transcription saved to: {output_file}")
-                
-            except Exception as e:
-                print(f"Error processing {file_path.name}: {str(e)}")
+    for file_path in media_files:
+        total_processed += 1
+        print(f"\nProcessing: {file_path.name}")
+        try:
+            transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
+            
+            # Save transcription to file
+            output_file = output_dir / f"{file_path.stem}_transcription.txt"
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(transcription)
+            print(f"Transcription saved to: {output_file}")
+            
+        except Exception as e:
+            failed += 1
+            print(f"Error processing {file_path.name}: {str(e)}")
+
+    elapsed = time.time() - start_time
+    success = total_processed - failed
+    skipped = len(directory_entries) - total_processed
+    summary = {
+        "processed": total_processed,
+        "success": success,
+        "failed": failed,
+        "skipped": skipped,
+        "elapsed_seconds": round(elapsed, 3),
+    }
+    print(
+        "\nDirectory processing complete. "
+        f"{summary['success']} succeeded, {summary['failed']} failed, "
+        f"{summary['skipped']} skipped, {summary['elapsed_seconds']}s"
+    )
+    return summary
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")
