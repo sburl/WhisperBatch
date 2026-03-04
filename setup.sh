@@ -13,10 +13,21 @@ cd "$PROJECT_DIR"
 # Pick the python interpreter: prefer python3 from PATH
 PYTHON_BIN=${PYTHON_BIN:-$(command -v python3 || true)}
 if [[ -z "$PYTHON_BIN" ]]; then
-  echo "❌ python3 not found in PATH. Please install Python 3.8+ first." >&2
+  echo "❌ python3 not found in PATH. Please install Python 3.9+ first." >&2
   exit 1
 fi
 
+# Validate supported Python versions before creating the virtual environment.
+if ! "$PYTHON_BIN" - <<'PY'
+import sys
+version = sys.version_info[:2]
+if not ((3, 9) <= version <= (3, 13)):
+    raise SystemExit(1)
+PY
+then
+  echo "❌ Unsupported Python version. Please use Python 3.9-3.13." >&2
+  exit 1
+fi
 # Print versions for debug
 $PYTHON_BIN -V
 uname -a
