@@ -92,7 +92,7 @@ def _render_vtt(segments):
     return "\n".join(lines).rstrip()
 
 
-def _result_to_json_payload(segments):
+def _result_to_json_payload(segments, include_timestamps: bool):
     return {
         "text": " ".join((segment.text or "").strip() for segment in segments).strip(),
         "segments": [
@@ -100,6 +100,7 @@ def _result_to_json_payload(segments):
                 "start": float(segment.start),
                 "end": float(segment.end),
                 "text": (segment.text or "").strip(),
+                "include_timestamps": bool(include_timestamps),
             }
             for segment in segments
         ],
@@ -118,7 +119,11 @@ def _render_output_text(segments, output_format: str, include_timestamps: bool) 
             return render_timestamped_text(segments)
         return render_plain_text(segments)
     if output_format == "json":
-        return json.dumps(_result_to_json_payload(segments), ensure_ascii=False, indent=2)
+        return json.dumps(
+            _result_to_json_payload(segments, include_timestamps=include_timestamps),
+            ensure_ascii=False,
+            indent=2,
+        )
     if output_format == "srt":
         return _render_srt(segments)
     if output_format == "vtt":
