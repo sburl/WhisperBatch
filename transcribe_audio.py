@@ -46,6 +46,12 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     
     if not directory.exists():
         raise ValueError(f"Directory not found: {directory_path}")
+    if not directory.is_dir():
+        raise ValueError(f"Not a directory: {directory_path}")
+
+    media_files = sorted(
+        [entry for entry in directory.iterdir() if entry.is_file() and entry.suffix.lower() in audio_extensions]
+    )
     
     # Load the model once for the entire run to avoid repeated downloads and RAM spikes
     print(f"Loading faster-whisper model: {model_name}")
@@ -56,20 +62,19 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     output_dir.mkdir(exist_ok=True)
     
     # Process each audio file
-    for file_path in directory.glob("*"):
-        if file_path.suffix.lower() in audio_extensions:
-            print(f"\nProcessing: {file_path.name}")
-            try:
-                transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
-                
-                # Save transcription to file
-                output_file = _output_transcript_path(output_dir, file_path.stem)
-                with open(output_file, "w", encoding="utf-8") as f:
-                    f.write(transcription)
-                print(f"Transcription saved to: {output_file}")
-                
-            except Exception as e:
-                print(f"Error processing {file_path.name}: {str(e)}")
+    for file_path in media_files:
+        print(f"\nProcessing: {file_path.name}")
+        try:
+            transcription = transcribe_audio(file_path, model_name, include_timestamps, model=model)
+            
+            # Save transcription to file
+            output_file = _output_transcript_path(output_dir, file_path.stem)
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(transcription)
+            print(f"Transcription saved to: {output_file}")
+            
+        except Exception as e:
+            print(f"Error processing {file_path.name}: {str(e)}")
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")
