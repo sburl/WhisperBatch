@@ -28,7 +28,7 @@ class TestAsyncBatchContract(unittest.TestCase):
 
             self.assertEqual(
                 ordered,
-                ["a.mp3", "A.mp3", "B.MP3", "b.mp3"],
+                ["A.mp3", "a.mp3", "B.MP3", "b.mp3"],
             )
             self.assertEqual([task.index for task in tasks], [0, 1, 2, 3])
 

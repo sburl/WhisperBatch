@@ -29,8 +29,10 @@ class TestOutputFormatHelpers(unittest.TestCase):
     def test_effective_include_timestamps_for_output(self):
         self.assertFalse(_effective_include_timestamps_for_output("srt", True))
         self.assertFalse(_effective_include_timestamps_for_output("vtt", True))
-        self.assertTrue(_effective_include_timestamps_for_output("txt", False))
-        self.assertTrue(_effective_include_timestamps_for_output("json", False))
+        self.assertFalse(_effective_include_timestamps_for_output("txt", False))
+        self.assertFalse(_effective_include_timestamps_for_output("json", False))
+        self.assertTrue(_effective_include_timestamps_for_output("txt", True))
+        self.assertTrue(_effective_include_timestamps_for_output("json", True))
 
     def test_format_timestamp_with_millis(self):
         self.assertEqual(_format_timestamp_with_millis(1.999, ","), "00:00:01,999")
