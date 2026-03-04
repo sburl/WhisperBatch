@@ -148,6 +148,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 100 | PR-DN | Disambiguate output paths for same-stem media files | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Uses source extension in output filename when base stem collisions would otherwise overwrite outputs |
 | 101 | PR-DQ | Align CLI core constants and resume helpers in `whisper_batch_core` | `whisper_batch_core/core.py`, `whisper_batch_core/__init__.py`, `transcribe_audio.py`, `tests/test_core.py` | Done | Pending (Gemini quota) | Restores missing shared constants/helpers required by GUI imports and CLI/GUI parity. |
 | 102 | PR-DR | Reuse core timestamp-only format constant in CLI output rendering | `transcribe_audio.py` | In progress | Pending (Gemini quota) | Removes local constant duplication for timestamp-only formats by sourcing from shared core constant. |
+| 103 | PR-DV | Reject unsupported model names in directory processing | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | In progress | Gemini requested | Add fail-fast validation before loading model and explicit regression coverage for unsupported model names. |
 
 ### PR-E execution notes
 
