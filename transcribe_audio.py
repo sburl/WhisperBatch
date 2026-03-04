@@ -16,6 +16,12 @@ SUPPORTED_OUTPUT_FORMATS = {"txt", "json", "srt", "vtt"}
 TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 
+def _collect_supported_files(directory: Path):
+    files = [path for path in directory.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS]
+    files.sort(key=lambda path: (path.name.lower(), path.name))
+    return files
+
+
 def _format_timestamp_with_millis(seconds, separator="."):
     total_ms = int(round(float(seconds) * 1000))
     hours = total_ms // 3600000
@@ -105,7 +111,6 @@ def transcribe_audio(file_path, model_name="large-v3", include_timestamps=True, 
 
 def process_directory(directory_path, model_name="large-v3", include_timestamps=True, output_format="txt"):
     """Process all supported audio/video files in the given directory"""
-    audio_extensions = SUPPORTED_EXTENSIONS
     directory = Path(directory_path)
     
     if not directory.exists():
@@ -120,26 +125,25 @@ def process_directory(directory_path, model_name="large-v3", include_timestamps=
     output_dir.mkdir(exist_ok=True)
     
     # Process each audio file
-    for file_path in directory.glob("*"):
-        if file_path.suffix.lower() in audio_extensions:
-            print(f"\nProcessing: {file_path.name}")
-            try:
-                transcription = transcribe_audio(
-                    file_path,
-                    model_name,
-                    include_timestamps,
-                    model=model,
-                    output_format=output_format,
-                )
+    for file_path in _collect_supported_files(directory):
+        print(f"\nProcessing: {file_path.name}")
+        try:
+            transcription = transcribe_audio(
+                file_path,
+                model_name,
+                include_timestamps,
+                model=model,
+                output_format=output_format,
+            )
+            
+            # Save transcription to file
+            output_file = output_dir / f"{file_path.stem}_transcription.{_output_extension(output_format)}"
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(transcription)
+            print(f"Transcription saved to: {output_file}")
                 
-                # Save transcription to file
-                output_file = output_dir / f"{file_path.stem}_transcription.{_output_extension(output_format)}"
-                with open(output_file, "w", encoding="utf-8") as f:
-                    f.write(transcription)
-                print(f"Transcription saved to: {output_file}")
-                
-            except Exception as e:
-                print(f"Error processing {file_path.name}: {str(e)}")
+        except Exception as e:
+            print(f"Error processing {file_path.name}: {str(e)}")
 
 def main():
     parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")

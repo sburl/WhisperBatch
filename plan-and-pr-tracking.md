@@ -139,6 +139,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 91 | PR-DD | Add GUI output format selection and rendering parity | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds GUI output-format chooser, output renderer dispatch, and output/metadata handling aligned with format-specific timestamp/resume behavior |
 | 92 | PR-DE | Add unit tests for GUI output-format renderer helpers | `tests/test_transcribe_gui_output_formats.py` | Done | Pending (Gemini quota) | Adds focused tests for renderer dispatch, timestamp formatting, subtitle rendering, and resume-safe timestamp defaults |
 | 93 | PR-DG | Add CLI output-format flags and renderers | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Adds `--output-format` with TXT/JSON/SRT/VTT rendering and format-specific output extension handling |
+| 94 | PR-DH | Stabilize CLI input ordering in `process_directory` | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Sorts supported media files case-insensitive with deterministic tie-breakers before batch processing |
 
 ### PR-E execution notes
 

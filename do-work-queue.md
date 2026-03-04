@@ -50,7 +50,7 @@ Stage 2 task 4 (duration/throughput metrics visibility) is now covered by [PR-AI
 Stage 2 task 6 (CLI usage and debugging examples) is covered by [PR-S](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Improvements task 10 (configurable worker concurrency for future GPU batching) is now covered by [PR-AR](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute) and [PR-AS](plan-and-pr-tracking.md#pr-as).
 Stage 4 task 14 (dependency vulnerability scan) is covered by [PR-R](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
-Stage 1 task 1 (deterministic file ordering in process_directory) is now covered by [PR-BB](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
+Stage 1 task 1 (deterministic file ordering in process_directory) is now covered by [PR-DH](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 3 task 2 (project config support) is now covered by [PR-AL](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).
 Stage 3 task 3 (resume mode and resume metadata usage) is now covered by [PR-AM](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute), including GUI resume behavior and metadata-aware task skipping.
 Stage 3 task 4 (plugin hook points for post-processing) is now covered by [PR-AT](plan-and-pr-tracking.md#pr-tracking-table-for-work-to-execute).

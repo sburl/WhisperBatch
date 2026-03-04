@@ -13,6 +13,14 @@ class _FakeTranscriptionResult:
         self.info = {}
 
 
+def test_collect_supported_files_sorted_case_insensitive(tmp_path):
+    for name in ["b.wav", "A.MP3", "a.wav", "B.MP3", "notes.txt"]:
+        (tmp_path / name).write_text("x", encoding="utf-8")
+
+    supported = transcribe_audio._collect_supported_files(tmp_path)
+    assert [path.name for path in supported] == ["A.MP3", "a.wav", "B.MP3", "b.wav"]
+
+
 def test_output_formats_map_to_expected_file_types_and_payload(tmp_path, monkeypatch):
     (tmp_path / "clip.wav").write_text("clip", encoding="utf-8")
     segment = TranscriptSegment(start=0.1, end=1.2, text="Hello world.")
