@@ -13,7 +13,6 @@ import json
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
     SUPPORTED_OUTPUT_FORMATS,
-    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     DEFAULT_OUTPUT_FORMAT,
     DEFAULT_TASK_NAME,
     DEFAULT_MODEL_NAME,
@@ -22,9 +21,13 @@ from whisper_batch_core import (
     get_model_cache_dir,
     is_model_cached,
     build_output_metadata_path,
+    effective_include_timestamps as _core_effective_include_timestamps,
+    format_timestamp_with_millis as _core_format_timestamp_with_millis,
     load_model as core_load_model,
-    render_plain_text,
-    render_timestamped_text,
+    render_output_text as _core_render_output_text,
+    render_srt as _core_render_srt,
+    render_vtt as _core_render_vtt,
+    result_to_json_payload as _core_result_to_json_payload,
     resolve_output_metadata_path,
     should_skip_output_due_to_metadata,
     transcribe_segments,
@@ -59,76 +62,31 @@ _check_pytorch_arch()
 
 
 def _format_timestamp_with_millis(seconds, separator=","):
-    total_milliseconds = int(round(float(seconds) * 1000))
-    hours = total_milliseconds // 3600000
-    minutes = (total_milliseconds % 3600000) // 60000
-    secs = ((total_milliseconds % 60000) // 1000)
-    millis = total_milliseconds % 1000
-    return f"{hours:02d}:{minutes:02d}:{secs:02d}{separator}{millis:03d}"
+    return _core_format_timestamp_with_millis(seconds, separator=separator)
 
 
 def _render_srt(segments):
-    lines = []
-    for index, segment in enumerate(segments, start=1):
-        lines.append(str(index))
-        lines.append(
-            f"{_format_timestamp_with_millis(segment.start, ',')} --> "
-            f"{_format_timestamp_with_millis(segment.end, ',')}"
-        )
-        lines.append((segment.text or "").strip())
-        lines.append("")
-    return "\n".join(lines).rstrip()
+    return _core_render_srt(segments)
 
 
 def _render_vtt(segments):
-    lines = ["WEBVTT", ""]
-    for segment in segments:
-        lines.append(
-            f"{_format_timestamp_with_millis(segment.start, '.')} --> "
-            f"{_format_timestamp_with_millis(segment.end, '.')}"
-        )
-        lines.append((segment.text or "").strip())
-        lines.append("")
-    return "\n".join(lines).rstrip()
+    return _core_render_vtt(segments)
 
 
 def _result_to_json_payload(segments, include_timestamps: bool):
-    return {
-        "text": " ".join((segment.text or "").strip() for segment in segments).strip(),
-        "segments": [
-            {
-                "start": float(segment.start),
-                "end": float(segment.end),
-                "text": (segment.text or "").strip(),
-                "include_timestamps": bool(include_timestamps),
-            }
-            for segment in segments
-        ],
-    }
+    return _core_result_to_json_payload(segments, include_timestamps=include_timestamps)
 
 
 def _effective_include_timestamps_for_output(output_format: str, include_timestamps: bool):
-    if output_format in TIMESTAMP_ONLY_OUTPUT_FORMATS:
-        return True
-    return bool(include_timestamps)
+    return _core_effective_include_timestamps(output_format, include_timestamps)
 
 
 def _render_output_text(segments, output_format: str, include_timestamps: bool) -> str:
-    if output_format == DEFAULT_OUTPUT_FORMAT:
-        if include_timestamps:
-            return render_timestamped_text(segments)
-        return render_plain_text(segments)
-    if output_format == "json":
-        return json.dumps(
-            _result_to_json_payload(segments, include_timestamps=include_timestamps),
-            ensure_ascii=False,
-            indent=2,
-        )
-    if output_format == "srt":
-        return _render_srt(segments)
-    if output_format == "vtt":
-        return _render_vtt(segments)
-    raise ValueError(f"Unsupported output format '{output_format}'.")
+    return _core_render_output_text(
+        segments,
+        output_format=output_format,
+        include_timestamps=include_timestamps,
+    )
 
 class TranscriptionApp:
     def __init__(self, root):
