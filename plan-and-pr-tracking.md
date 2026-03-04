@@ -138,6 +138,7 @@ All open dependency PRs are blocked in merge state (no checks currently reported
 | 90 | PR-DA | Align resume overwrite precedence with stale metadata behavior | `transcribe_audio.py`, `transcribe_gui.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Allows stale/invalid metadata to trigger reprocessing under resume mode, even when overwrite is disabled, while preserving skip semantics for exact matches |
 | 91 | PR-DD | Add GUI output format selection and rendering parity | `transcribe_gui.py` | Done | Pending (Gemini quota) | Adds GUI output-format chooser, output renderer dispatch, and output/metadata handling aligned with format-specific timestamp/resume behavior |
 | 92 | PR-DE | Add unit tests for GUI output-format renderer helpers | `tests/test_transcribe_gui_output_formats.py` | Done | Pending (Gemini quota) | Adds focused tests for renderer dispatch, timestamp formatting, subtitle rendering, and resume-safe timestamp defaults |
+| 93 | PR-DF | Stabilize CLI directory ordering and add run summary reporting | `transcribe_audio.py`, `tests/test_transcribe_audio.py` | Done | Pending (Gemini quota) | Sorts supported inputs deterministically with case-aware tie-breakers, validates directories, and returns success/failed/skipped summaries while continuing on per-file errors |
 
 ### PR-E execution notes
 
