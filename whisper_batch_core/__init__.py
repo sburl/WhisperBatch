@@ -1,5 +1,13 @@
 from .core import (
+    DEFAULT_MODEL_NAME,
+    DEFAULT_OUTPUT_FORMAT,
+    DEFAULT_TASK_NAME,
+    MODEL_METADATA,
     SUPPORTED_EXTENSIONS,
+    SUPPORTED_MODELS,
+    SUPPORTED_OUTPUT_FORMATS,
+    SUPPORTED_TASKS,
+    TIMESTAMP_ONLY_OUTPUT_FORMATS,
     format_timestamp,
     load_model,
     render_plain_text,
@@ -10,7 +18,15 @@ from .core import (
 from .types import TranscriptSegment, TranscriptionResult
 
 __all__ = [
+    "DEFAULT_MODEL_NAME",
+    "DEFAULT_OUTPUT_FORMAT",
+    "DEFAULT_TASK_NAME",
+    "MODEL_METADATA",
     "SUPPORTED_EXTENSIONS",
+    "SUPPORTED_MODELS",
+    "SUPPORTED_OUTPUT_FORMATS",
+    "SUPPORTED_TASKS",
+    "TIMESTAMP_ONLY_OUTPUT_FORMATS",
     "TranscriptSegment",
     "TranscriptionResult",
     "format_timestamp",

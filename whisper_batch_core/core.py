@@ -16,6 +16,24 @@ SUPPORTED_EXTENSIONS = {
     '.mpeg', '.mpg', '.ts', '.webm', '.wmv',
 }
 
+SUPPORTED_MODELS = ("tiny", "base", "small", "medium", "large-v3")
+DEFAULT_MODEL_NAME = "large-v3"
+
+SUPPORTED_TASKS = {"transcribe", "translate"}
+DEFAULT_TASK_NAME = "transcribe"
+
+SUPPORTED_OUTPUT_FORMATS = {"txt", "json", "srt", "vtt"}
+DEFAULT_OUTPUT_FORMAT = "txt"
+TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
+
+MODEL_METADATA = {
+    "tiny": {"size": "~75MB", "use_case": "Quick transcriptions, clear speech"},
+    "base": {"size": "~142MB", "use_case": "General purpose, good speed/accuracy balance"},
+    "small": {"size": "~466MB", "use_case": "Multiple languages, moderate accuracy"},
+    "medium": {"size": "~1.5GB", "use_case": "Complex audio, multiple speakers"},
+    "large-v3": {"size": "~3GB", "use_case": "Professional use, maximum accuracy"},
+}
+
 
 def load_model(model_name: str, device: str = "auto", compute_type: Optional[str] = None) -> WhisperModel:
     """Load a faster-whisper model with the requested device/compute settings."""
@@ -31,7 +49,7 @@ def load_model(model_name: str, device: str = "auto", compute_type: Optional[str
 def transcribe_segments(
     model: WhisperModel,
     audio_path: str,
-    task: str = "transcribe"
+    task: str = DEFAULT_TASK_NAME,
 ) -> Tuple[List[TranscriptSegment], object]:
     """Transcribe audio and return a list of segments plus metadata info."""
     segments, info = model.transcribe(audio_path, task=task)
@@ -65,12 +83,12 @@ def render_plain_text(segments: Iterable[TranscriptSegment]) -> str:
 
 def transcribe_file(
     audio_path: str,
-    model_name: str = "large-v3",
+    model_name: str = DEFAULT_MODEL_NAME,
     include_timestamps: bool = True,
     device: str = "auto",
     compute_type: Optional[str] = None,
     model: Optional[WhisperModel] = None,
-    task: str = "transcribe"
+    task: str = DEFAULT_TASK_NAME,
 ) -> TranscriptionResult:
     """Transcribe a single audio file and return text plus segments metadata."""
     model = model or load_model(model_name, device=device, compute_type=compute_type)
