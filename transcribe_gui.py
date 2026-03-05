@@ -34,7 +34,7 @@ def _check_pytorch_arch():
                 "\n🚫 Detected x86-64 PyTorch wheel running under Rosetta.\n"
                 "Please reinstall the native arm64 wheel:\n\n"
                 "    pip uninstall -y torch\n"
-                "    pip install --no-cache-dir --force-reinstall torch==2.1.0 "
+                "    pip install --no-cache-dir --force-reinstall torch==2.4.1 "
                 "--index-url https://download.pytorch.org/whl/cpu\n\n"
                 "Then run the program again.\n"
             )
