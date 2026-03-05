@@ -1,6 +1,9 @@
+import math
+import os
 from typing import Iterable, List, Optional, Tuple
 
 import platform
+from pathlib import Path
 
 from faster_whisper import WhisperModel
 
@@ -35,6 +38,44 @@ MODEL_METADATA = {
 }
 
 
+def _normalize_cache_root(raw_root: str) -> Path:
+    """Return a normalized cache root path with environment expansion."""
+    return Path(os.path.expandvars(raw_root)).expanduser()
+
+
+def get_model_cache_root() -> Path:
+    """Return the base Hugging Face cache root used by faster-whisper."""
+    hf_home = os.environ.get("HF_HOME", "").strip()
+    if hf_home:
+        return _normalize_cache_root(hf_home) / "hub"
+
+    hub_cache = os.environ.get("HUGGINGFACE_HUB_CACHE", "").strip()
+    if hub_cache:
+        return _normalize_cache_root(hub_cache)
+
+    xdg_cache = os.environ.get("XDG_CACHE_HOME", "").strip()
+    if xdg_cache:
+        return _normalize_cache_root(xdg_cache) / "huggingface" / "hub"
+
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+        if local_app_data:
+            return _normalize_cache_root(local_app_data) / "huggingface" / "hub"
+        return Path.home() / "AppData" / "Local" / "huggingface" / "hub"
+
+    return Path.home() / ".cache" / "huggingface" / "hub"
+
+
+def get_model_cache_dir(model_name: str) -> Path:
+    """Return expected model cache directory path for a faster-whisper model."""
+    return get_model_cache_root() / f"models--Systran--faster-whisper-{model_name}"
+
+
+def is_model_cached(model_name: str) -> bool:
+    """Return True when the model cache path exists for the requested model."""
+    return get_model_cache_dir(model_name).is_dir()
+
+
 def load_model(model_name: str, device: str = "auto", compute_type: Optional[str] = None) -> WhisperModel:
     """Load a faster-whisper model with the requested device/compute settings."""
     if device == "auto" and platform.system() == "Darwin" and platform.machine() == "arm64":
@@ -43,7 +84,14 @@ def load_model(model_name: str, device: str = "auto", compute_type: Optional[str
         kwargs = {"device": device}
     if compute_type:
         kwargs["compute_type"] = compute_type
-    return WhisperModel(model_name, **kwargs)
+    try:
+        return WhisperModel(model_name, **kwargs)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Unable to load Whisper model '{model_name}' with kwargs={kwargs}. "
+            "This is often caused by interrupted downloads or a corrupted model cache. "
+            "Try clearing your local cache and retrying, or switch models to verify."
+        ) from exc
 
 
 def transcribe_segments(
@@ -58,9 +106,15 @@ def transcribe_segments(
 
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS format."""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
+    try:
+        total_seconds = float(seconds)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Timestamp value must be a numeric type.") from exc
+    if not math.isfinite(total_seconds) or total_seconds < 0:
+        raise ValueError("Timestamp value must be a finite, non-negative number.")
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    secs = int(total_seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
