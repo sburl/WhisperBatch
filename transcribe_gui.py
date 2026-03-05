@@ -6,7 +6,6 @@ import threading
 from pathlib import Path
 import queue
 import os
-import librosa
 import time
 
 from whisper_batch_core import (
@@ -615,7 +614,7 @@ class TranscriptionApp:
                     
                     # Update text area with completion info
                     self.queue.put(("text", f"\n=== {filename} ===\n"))
-                    self.queue.put(("text", f"Transcription complete!\n"))
+                    self.queue.put(("text", "Transcription complete!\n"))
                     self.queue.put(("text", f"Saved to: {output_file}\n\n"))
                     self.queue.put(("status", f"Saved transcription to: {output_file}"))
                     
@@ -733,7 +732,7 @@ class TranscriptionApp:
                         if duration <= 0:
                             raise ValueError("Invalid duration")
                             
-                    except (subprocess.TimeoutExpired, ValueError, subprocess.CalledProcessError) as e:
+                    except (subprocess.TimeoutExpired, ValueError, subprocess.CalledProcessError):
                         self.queue.put(("text", f"\nWarning: Invalid audio file: {filename}\n"))
                         self.queue.put(("text", "This file appears to be corrupted or is not a valid audio file.\n\n"))
                         
@@ -1239,7 +1238,7 @@ class TranscriptionApp:
 
 def main():
     root = tk.Tk()
-    app = TranscriptionApp(root)
+    TranscriptionApp(root)
     root.mainloop()
 
 if __name__ == "__main__":

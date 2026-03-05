@@ -10,7 +10,6 @@ from whisper_batch_core import TranscriptSegment, TranscriptionResult
 from transcribe_audio import (
     _build_output_file_path,
     process_directory,
-    transcribe_audio,
 )
 
 

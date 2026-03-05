@@ -1,6 +1,5 @@
 """Tests for whisper_batch_core.core — constants, helpers, and renderers."""
 
-import math
 import os
 import unittest
 from pathlib import Path
