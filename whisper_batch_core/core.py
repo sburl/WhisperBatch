@@ -135,6 +135,74 @@ def render_plain_text(segments: Iterable[TranscriptSegment]) -> str:
     return " ".join(text_parts).strip()
 
 
+def format_timestamp_with_millis(seconds: float, separator: str = ",") -> str:
+    """Convert seconds to HH:MM:SS,mmm format for SRT/VTT."""
+    total_ms = int(round(float(seconds) * 1000))
+    hours = total_ms // 3600000
+    minutes = (total_ms % 3600000) // 60000
+    secs = (total_ms % 60000) // 1000
+    millis = total_ms % 1000
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}{separator}{millis:03d}"
+
+
+def render_srt(segments: Iterable[TranscriptSegment]) -> str:
+    """Render transcript in SRT subtitle format."""
+    lines = []
+    for index, segment in enumerate(segments, start=1):
+        lines.append(str(index))
+        lines.append(
+            f"{format_timestamp_with_millis(segment.start, ',')} --> "
+            f"{format_timestamp_with_millis(segment.end, ',')}"
+        )
+        lines.append((segment.text or "").strip())
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def render_vtt(segments: Iterable[TranscriptSegment]) -> str:
+    """Render transcript in WebVTT subtitle format."""
+    lines = ["WEBVTT", ""]
+    for segment in segments:
+        lines.append(
+            f"{format_timestamp_with_millis(segment.start, '.')} --> "
+            f"{format_timestamp_with_millis(segment.end, '.')}"
+        )
+        lines.append((segment.text or "").strip())
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def result_to_json_payload(segments: Iterable[TranscriptSegment]) -> dict:
+    """Build a JSON-serializable transcript payload."""
+    seg_list = list(segments)
+    return {
+        "text": " ".join((s.text or "").strip() for s in seg_list).strip(),
+        "segments": [
+            {"start": float(s.start), "end": float(s.end), "text": (s.text or "").strip()}
+            for s in seg_list
+        ],
+    }
+
+
+def render_output_text(
+    segments: Iterable[TranscriptSegment],
+    output_format: str = DEFAULT_OUTPUT_FORMAT,
+    include_timestamps: bool = True,
+) -> str:
+    """Render segments into the requested output format."""
+    import json as _json
+
+    if output_format == "txt":
+        return render_timestamped_text(segments) if include_timestamps else render_plain_text(segments)
+    if output_format == "json":
+        return _json.dumps(result_to_json_payload(segments), ensure_ascii=False, indent=2)
+    if output_format == "srt":
+        return render_srt(segments)
+    if output_format == "vtt":
+        return render_vtt(segments)
+    raise ValueError(f"Unsupported output format '{output_format}'.")
+
+
 def transcribe_file(
     audio_path: str,
     model_name: str = DEFAULT_MODEL_NAME,
