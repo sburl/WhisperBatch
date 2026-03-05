@@ -76,5 +76,9 @@ def main():
     
     return 0
 
+def cli():
+    """Console-script-compatible entrypoint."""
+    raise SystemExit(main())
+
 if __name__ == "__main__":
-    exit(main()) 
+    cli()
