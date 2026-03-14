@@ -37,21 +37,4 @@ pip install --upgrade pip wheel
 echo "➡️  Installing Python requirements"
 pip install -r requirements.txt
 
-# --- Apple-Silicon specific: ensure arm64 wheel of PyTorch --------------------
-if [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
-  PYTORCH_OK=$(python - <<'PY'
-try:
-    import torch, platform
-    print('arm64' if platform.machine() == 'arm64' else 'x86')
-except Exception:
-    print('missing')
-PY
-  )
-  if [[ "$PYTORCH_OK" != "arm64" ]]; then
-    echo "↪️  Re-installing native arm64 PyTorch wheel (CPU-only)"
-    pip uninstall -y torch || true
-    pip install --no-cache-dir --force-reinstall torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
-  fi
-fi
-
 echo "✅ Setup complete! Activate the environment with: source $VENV_DIR/bin/activate" 

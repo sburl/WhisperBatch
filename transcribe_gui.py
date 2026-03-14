@@ -24,25 +24,25 @@ import sys
 # x86-64 wheels executed via Rosetta crash with a misleading loader error.
 # We intercept that scenario to display actionable instructions instead.
 
-def _check_pytorch_arch():
+def _check_native_libs():
+    """Detect x86-64 native libs running under Rosetta on Apple Silicon."""
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        return
     try:
-        import torch  # noqa: F401 – we only need the import side-effects
+        import ctranslate2  # noqa: F401
     except OSError as exc:
-        if "have instead 16" in str(exc) and platform.machine() == "arm64":
+        if "have instead 16" in str(exc):
             sys.stderr.write(
-                "\n🚫 Detected x86-64 PyTorch wheel running under Rosetta.\n"
-                "Please reinstall the native arm64 wheel:\n\n"
-                "    pip uninstall -y torch\n"
-                "    pip install --no-cache-dir --force-reinstall torch==2.4.1 "
-                "--index-url https://download.pytorch.org/whl/cpu\n\n"
+                "\n🚫 Detected x86-64 ctranslate2 running under Rosetta.\n"
+                "Please reinstall native arm64 packages:\n\n"
+                "    pip install --no-cache-dir --force-reinstall ctranslate2\n\n"
                 "Then run the program again.\n"
             )
             sys.exit(1)
     except ModuleNotFoundError:
-        # torch not installed – setup is still in progress; skip check
         pass
 
-_check_pytorch_arch()
+_check_native_libs()
 
 class TranscriptionApp:
     def __init__(self, root):
