@@ -9,6 +9,9 @@ description = "Core transcription utilities for faster-whisper"
 requires-python = ">=3.9"
 dependencies = ["faster-whisper>=1.2.1"]
 
+[project.optional-dependencies]
+diarize = ["pyannote.audio>=3.1"]
+
 [project.scripts]
 whisper-batch = "transcribe_audio:cli"
 

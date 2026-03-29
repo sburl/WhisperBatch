@@ -125,14 +125,28 @@ def render_timestamped_text(segments: Iterable[TranscriptSegment]) -> str:
         start_time = format_timestamp(segment.start)
         end_time = format_timestamp(segment.end)
         text = segment.text.strip()
-        formatted_text.append(f"[{start_time} --> {end_time}] {text}")
+        if segment.speaker:
+            formatted_text.append(f"[{start_time} --> {end_time}] {segment.speaker}: {text}")
+        else:
+            formatted_text.append(f"[{start_time} --> {end_time}] {text}")
     return "\n".join(formatted_text)
 
 
 def render_plain_text(segments: Iterable[TranscriptSegment]) -> str:
     """Render transcript as a single text block without timestamps."""
-    text_parts = [segment.text.strip() for segment in segments]
-    return " ".join(text_parts).strip()
+    seg_list = list(segments)
+    has_speakers = any(s.speaker for s in seg_list)
+    if not has_speakers:
+        return " ".join(s.text.strip() for s in seg_list).strip()
+
+    parts: list[str] = []
+    current_speaker = None
+    for seg in seg_list:
+        if seg.speaker != current_speaker:
+            current_speaker = seg.speaker
+            parts.append(f"\n{current_speaker}:\n")
+        parts.append(seg.text.strip())
+    return " ".join(parts).strip()
 
 
 def format_timestamp_with_millis(seconds: float, separator: str = ",") -> str:
@@ -154,7 +168,10 @@ def render_srt(segments: Iterable[TranscriptSegment]) -> str:
             f"{format_timestamp_with_millis(segment.start, ',')} --> "
             f"{format_timestamp_with_millis(segment.end, ',')}"
         )
-        lines.append((segment.text or "").strip())
+        text = (segment.text or "").strip()
+        if segment.speaker:
+            text = f"{segment.speaker}: {text}"
+        lines.append(text)
         lines.append("")
     return "\n".join(lines).rstrip()
 
@@ -163,11 +180,14 @@ def render_vtt(segments: Iterable[TranscriptSegment]) -> str:
     """Render transcript in WebVTT subtitle format."""
     lines = ["WEBVTT", ""]
     for segment in segments:
+        text = (segment.text or "").strip()
+        if segment.speaker:
+            text = f"{segment.speaker}: {text}"
         lines.append(
             f"{format_timestamp_with_millis(segment.start, '.')} --> "
             f"{format_timestamp_with_millis(segment.end, '.')}"
         )
-        lines.append((segment.text or "").strip())
+        lines.append(text)
         lines.append("")
     return "\n".join(lines).rstrip()
 
@@ -175,12 +195,15 @@ def render_vtt(segments: Iterable[TranscriptSegment]) -> str:
 def result_to_json_payload(segments: Iterable[TranscriptSegment]) -> dict:
     """Build a JSON-serializable transcript payload."""
     seg_list = list(segments)
+    seg_dicts = []
+    for s in seg_list:
+        d: dict = {"start": float(s.start), "end": float(s.end), "text": (s.text or "").strip()}
+        if s.speaker is not None:
+            d["speaker"] = s.speaker
+        seg_dicts.append(d)
     return {
         "text": " ".join((s.text or "").strip() for s in seg_list).strip(),
-        "segments": [
-            {"start": float(s.start), "end": float(s.end), "text": (s.text or "").strip()}
-            for s in seg_list
-        ],
+        "segments": seg_dicts,
     }
 
 

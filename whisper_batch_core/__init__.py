@@ -23,6 +23,12 @@ from .core import (
     transcribe_file,
     transcribe_segments,
 )
+from .diarize import (
+    assign_speakers,
+    diarize_segments,
+    load_diarization_pipeline,
+    run_diarization,
+)
 from .types import TranscriptSegment, TranscriptionResult
 
 __all__ = [
@@ -37,11 +43,14 @@ __all__ = [
     "TIMESTAMP_ONLY_OUTPUT_FORMATS",
     "TranscriptSegment",
     "TranscriptionResult",
+    "assign_speakers",
+    "diarize_segments",
     "format_timestamp",
     "format_timestamp_with_millis",
     "get_model_cache_dir",
     "get_model_cache_root",
     "is_model_cached",
+    "load_diarization_pipeline",
     "load_model",
     "render_output_text",
     "render_plain_text",
@@ -49,6 +58,7 @@ __all__ = [
     "render_timestamped_text",
     "render_vtt",
     "result_to_json_payload",
+    "run_diarization",
     "transcribe_file",
     "transcribe_segments",
 ]

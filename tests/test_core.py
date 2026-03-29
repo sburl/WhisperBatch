@@ -32,8 +32,8 @@ from whisper_batch_core import (
 )
 
 
-def _seg(start, end, text):
-    return TranscriptSegment(start=start, end=end, text=text)
+def _seg(start, end, text, speaker=None):
+    return TranscriptSegment(start=start, end=end, text=text, speaker=speaker)
 
 
 # --- Constants ---
@@ -248,6 +248,57 @@ class TestTranscribeSegments(unittest.TestCase):
         result = transcribe_file("/fake.wav", model=mock_model)
         self.assertIn("test output", result.text)
         self.assertEqual(len(result.segments), 1)
+
+
+# --- Renderers with speaker labels ---
+
+class TestRenderersWithSpeakers(unittest.TestCase):
+    def setUp(self):
+        self.segments = [
+            _seg(0.0, 2.5, " Hello world ", speaker="Speaker 1"),
+            _seg(2.5, 5.0, " Goodbye ", speaker="Speaker 2"),
+        ]
+
+    def test_render_timestamped_text_with_speakers(self):
+        result = render_timestamped_text(self.segments)
+        self.assertIn("Speaker 1: Hello world", result)
+        self.assertIn("Speaker 2: Goodbye", result)
+
+    def test_render_plain_text_with_speakers(self):
+        result = render_plain_text(self.segments)
+        self.assertIn("Speaker 1:", result)
+        self.assertIn("Speaker 2:", result)
+
+    def test_render_srt_with_speakers(self):
+        result = render_srt(self.segments)
+        self.assertIn("Speaker 1: Hello world", result)
+        self.assertIn("Speaker 2: Goodbye", result)
+
+    def test_render_vtt_with_speakers(self):
+        result = render_vtt(self.segments)
+        self.assertIn("Speaker 1: Hello world", result)
+        self.assertIn("Speaker 2: Goodbye", result)
+
+    def test_json_payload_with_speakers(self):
+        payload = result_to_json_payload(self.segments)
+        self.assertEqual(payload["segments"][0]["speaker"], "Speaker 1")
+        self.assertEqual(payload["segments"][1]["speaker"], "Speaker 2")
+
+    def test_json_payload_without_speakers_has_no_speaker_key(self):
+        segments = [_seg(0.0, 1.0, "test")]
+        payload = result_to_json_payload(segments)
+        self.assertNotIn("speaker", payload["segments"][0])
+
+    def test_render_timestamped_no_speaker_unchanged(self):
+        """Segments without speaker produce identical output to before."""
+        segments = [_seg(0.0, 2.5, " Hello ")]
+        result = render_timestamped_text(segments)
+        self.assertEqual(result, "[00:00:00 --> 00:00:02] Hello")
+
+    def test_render_plain_text_no_speaker_unchanged(self):
+        segments = [_seg(0.0, 1.0, " Hello "), _seg(1.0, 2.0, " World ")]
+        result = render_plain_text(segments)
+        self.assertEqual(result, "Hello World")
 
 
 if __name__ == "__main__":

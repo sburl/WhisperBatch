@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import time
 from collections import Counter
 from pathlib import Path
@@ -11,6 +12,8 @@ from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
     SUPPORTED_MODELS,
     SUPPORTED_OUTPUT_FORMATS,
+    diarize_segments,
+    load_diarization_pipeline,
     load_model,
     render_output_text,
     transcribe_file,
@@ -26,7 +29,8 @@ def _build_output_file_path(output_dir, stem, output_format, occurrence=1):
 
 
 def transcribe_audio(file_path, model_name=DEFAULT_MODEL_NAME, include_timestamps=True,
-                     output_format=DEFAULT_OUTPUT_FORMAT, model=None):
+                     output_format=DEFAULT_OUTPUT_FORMAT, model=None,
+                     diarize=False, hf_token=None, diarization_pipeline=None):
     """Transcribe audio file using faster-whisper"""
     model = model or load_model(model_name, device="auto")
 
@@ -39,12 +43,19 @@ def transcribe_audio(file_path, model_name=DEFAULT_MODEL_NAME, include_timestamp
         model=model,
         task="transcribe"
     )
-    return render_output_text(result.segments, output_format=output_format,
+    segments = result.segments
+    if diarize:
+        print(f"Running speaker diarization: {file_path}")
+        segments = diarize_segments(
+            segments, str(file_path), hf_token, pipeline=diarization_pipeline,
+        )
+    return render_output_text(segments, output_format=output_format,
                               include_timestamps=include_timestamps)
 
 
 def process_directory(directory_path, model_name=DEFAULT_MODEL_NAME,
-                      include_timestamps=True, output_format=DEFAULT_OUTPUT_FORMAT):
+                      include_timestamps=True, output_format=DEFAULT_OUTPUT_FORMAT,
+                      diarize=False, hf_token=None):
     """Process all supported audio/video files in the given directory."""
     directory = Path(directory_path).expanduser()
 
@@ -77,6 +88,18 @@ def process_directory(directory_path, model_name=DEFAULT_MODEL_NAME,
     print(f"Loading faster-whisper model: {model_name}")
     model = load_model(model_name, device="auto")
 
+    # Load diarization pipeline once if requested
+    diarization_pipeline = None
+    if diarize:
+        hf_token = hf_token or os.environ.get("HF_TOKEN", "")
+        if not hf_token:
+            raise ValueError(
+                "A HuggingFace token is required for speaker diarization. "
+                "Pass --hf-token or set the HF_TOKEN environment variable."
+            )
+        print("Loading speaker diarization pipeline...")
+        diarization_pipeline = load_diarization_pipeline(hf_token)
+
     # Create output directory
     output_dir = directory / "transcriptions"
     output_dir.mkdir(exist_ok=True)
@@ -95,6 +118,8 @@ def process_directory(directory_path, model_name=DEFAULT_MODEL_NAME,
             transcription = transcribe_audio(
                 file_path, model_name, include_timestamps,
                 output_format=output_format, model=model,
+                diarize=diarize, hf_token=hf_token,
+                diarization_pipeline=diarization_pipeline,
             )
 
             output_file = _build_output_file_path(
@@ -133,6 +158,11 @@ def main():
     parser.add_argument("--output-format", default=DEFAULT_OUTPUT_FORMAT,
                       choices=sorted(SUPPORTED_OUTPUT_FORMATS),
                       help=f"Output format (default: {DEFAULT_OUTPUT_FORMAT})")
+    parser.add_argument("--diarize", "-d", action="store_true",
+                      help="Enable speaker diarization (requires pyannote.audio)")
+    parser.add_argument("--hf-token", default=None,
+                      help="HuggingFace token for diarization model access "
+                           "(or set HF_TOKEN env var)")
 
     args = parser.parse_args()
 
@@ -140,6 +170,8 @@ def main():
         process_directory(
             args.directory, args.model,
             not args.no_timestamps, args.output_format,
+            diarize=args.diarize,
+            hf_token=args.hf_token,
         )
     except Exception as e:
         print(f"Error: {str(e)}")

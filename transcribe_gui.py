@@ -10,7 +10,9 @@ import time
 
 from whisper_batch_core import (
     SUPPORTED_EXTENSIONS,
+    diarize_segments,
     format_timestamp as core_format_timestamp,
+    load_diarization_pipeline,
     load_model as core_load_model,
     render_plain_text,
     render_timestamped_text,
@@ -130,6 +132,28 @@ class TranscriptionApp:
             variable=self.timestamps_var
         )
         self.timestamps_check.grid(row=0, column=2, padx=5)
+
+        # Speaker diarization checkbox
+        self.diarize_var = tk.BooleanVar(value=False)
+        self.diarize_check = ttk.Checkbutton(
+            self.options_frame,
+            text="Speaker Diarization",
+            variable=self.diarize_var,
+            command=self._on_diarize_toggle,
+        )
+        self.diarize_check.grid(row=0, column=3, padx=5)
+
+        # HF Token row (hidden until diarization enabled)
+        self.hf_token_frame = ttk.Frame(self.options_frame)
+        ttk.Label(self.hf_token_frame, text="HF Token:").pack(side=tk.LEFT, padx=(0, 5))
+        self.hf_token_entry = ttk.Entry(self.hf_token_frame, show="*", width=30)
+        self.hf_token_entry.pack(side=tk.LEFT)
+        # Pre-fill from environment if available
+        env_token = os.environ.get("HF_TOKEN", "")
+        if env_token:
+            self.hf_token_entry.insert(0, env_token)
+            ttk.Label(self.hf_token_frame, text="(from HF_TOKEN env)",
+                      foreground="gray").pack(side=tk.LEFT, padx=5)
 
         # Device selection
         ttk.Label(self.options_frame, text="Device:").grid(row=1, column=0, padx=5, pady=(5, 0))
@@ -429,7 +453,21 @@ class TranscriptionApp:
         self.worker_device = self.get_selected_device()
         self.worker_compute_type = self.get_selected_compute_type()
         self.worker_model_speeds = dict(self.model_speeds)
-        
+        self.worker_diarize = self.diarize_var.get()
+        self.worker_hf_token = self.hf_token_entry.get().strip() or os.environ.get("HF_TOKEN", "")
+        self.worker_diarization_pipeline = None
+
+        if self.worker_diarize and not self.worker_hf_token:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Missing Token",
+                "Speaker diarization requires a HuggingFace token.\n\n"
+                "Enter it in the HF Token field or set the HF_TOKEN environment variable.\n"
+                "Get a token at: https://huggingface.co/settings/tokens",
+            )
+            self.is_processing = False
+            return
+
         # Snapshot pending files on the main thread and enqueue them
         for item_id in self.file_list.get_children():
             values = self.file_list.item(item_id)["values"]
@@ -448,7 +486,8 @@ class TranscriptionApp:
         self.select_button.configure(state=tk.DISABLED)
         self.device_combo.configure(state=tk.DISABLED)
         self.compute_combo.configure(state=tk.DISABLED)
-        
+        self.diarize_check.configure(state=tk.DISABLED)
+
         # Start the elapsed time updates
         self.update_remaining_time()
         
@@ -500,10 +539,11 @@ class TranscriptionApp:
         self.select_button.configure(state=tk.NORMAL)
         self.device_combo.configure(state="readonly")
         self.compute_combo.configure(state="readonly")
-        
+        self.diarize_check.configure(state=tk.NORMAL)
+
         # Reset time display
         self.update_total_time_estimate()
-        
+
         self.queue.put(("status", "Processing stopped"))
 
     def process_queue(self):
@@ -519,7 +559,21 @@ class TranscriptionApp:
                 compute_type=getattr(self, "worker_compute_type", self.get_selected_compute_type())
             )
             self.queue.put(("text", "Model loaded, starting transcription...\n\n"))
-            
+
+            # Load diarization pipeline if enabled
+            if getattr(self, "worker_diarize", False):
+                self.queue.put(("status", "Loading speaker diarization pipeline..."))
+                self.queue.put(("text", "Loading speaker diarization pipeline (first time may download ~300MB)...\n"))
+                try:
+                    self.worker_diarization_pipeline = load_diarization_pipeline(
+                        self.worker_hf_token,
+                    )
+                    self.queue.put(("text", "Diarization pipeline loaded.\n\n"))
+                except Exception as e:
+                    self.queue.put(("text", f"Failed to load diarization pipeline: {e}\n"))
+                    self.queue.put(("text", "Continuing without speaker diarization.\n\n"))
+                    self.worker_diarize = False
+
             pause_notified = False
             while not self.should_stop:
                 # Respect pause requests
@@ -597,9 +651,19 @@ class TranscriptionApp:
                     # Transcribe file
                     segments, _info = transcribe_segments(model, file_path, task="transcribe")
 
+                    # Run speaker diarization if enabled
+                    if getattr(self, "worker_diarize", False) and self.worker_diarization_pipeline:
+                        self.queue.put(("status", f"Diarizing: {filename}"))
+                        self.queue.put(("text", "Running speaker diarization...\n"))
+                        segments = diarize_segments(
+                            segments, file_path, self.worker_hf_token,
+                            pipeline=self.worker_diarization_pipeline,
+                        )
+                        self.queue.put(("text", "Diarization complete.\n"))
+
                     # Stop tracking elapsed time
                     self.queue.put(("transcribe_end", None))
-                    
+
                     # After transcription, format with timestamps if needed
                     if include_timestamps:
                         transcription = render_timestamped_text(segments)
@@ -879,6 +943,7 @@ class TranscriptionApp:
                     # Processing completed naturally - show "Done!"
                     self.processing_completed = True
                     self.elapsed_time_label["text"] = "Done!"
+                    self.diarize_check.configure(state=tk.NORMAL)
 
                 self.queue.task_done()
         except queue.Empty:
@@ -886,6 +951,13 @@ class TranscriptionApp:
 
         # Schedule next check
         self.root.after(100, self.check_queue)
+
+    def _on_diarize_toggle(self):
+        """Show/hide the HF token field when diarization is toggled."""
+        if self.diarize_var.get():
+            self.hf_token_frame.grid(row=2, column=0, columnspan=4, padx=5, pady=(5, 0), sticky=tk.W)
+        else:
+            self.hf_token_frame.grid_remove()
 
     def on_model_change(self, event=None):
         """Update model info when model selection changes"""
