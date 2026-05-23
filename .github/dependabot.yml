@@ -9,3 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 10
+      semver-major-days: 20
+      semver-minor-days: 10
+      semver-patch-days: 7
