@@ -23,7 +23,7 @@ from .core import (
     transcribe_file,
     transcribe_segments,
 )
-from .types import TranscriptSegment, TranscriptionResult
+from .types import TranscriptionResult, TranscriptSegment
 
 __all__ = [
     "DEFAULT_MODEL_NAME",

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -9,7 +10,7 @@ class TranscriptSegment:
     text: str
 
     @classmethod
-    def from_whisper(cls, segment: object) -> "TranscriptSegment":
+    def from_whisper(cls, segment: object) -> TranscriptSegment:
         return cls(
             start=float(segment.start),
             end=float(segment.end),
@@ -20,5 +21,5 @@ class TranscriptSegment:
 @dataclass(frozen=True)
 class TranscriptionResult:
     text: str
-    segments: List[TranscriptSegment]
+    segments: list[TranscriptSegment]
     info: object
