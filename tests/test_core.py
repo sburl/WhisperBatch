@@ -230,7 +230,7 @@ class TestTranscribeSegments(unittest.TestCase):
         mock_model = MagicMock()
         mock_model.transcribe.return_value = ([mock_seg], mock_info)
 
-        segments, info = transcribe_segments(mock_model, "/fake.wav")
+        segments, _info = transcribe_segments(mock_model, "/fake.wav")
         self.assertEqual(len(segments), 1)
         self.assertEqual(segments[0].text, "hello")
         self.assertEqual(segments[0].start, 0.0)

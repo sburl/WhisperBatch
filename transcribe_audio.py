@@ -106,12 +106,15 @@ def process_directory(directory_path, model_name=DEFAULT_MODEL_NAME,
             success += 1
 
         except Exception as e:
-            print(f"Error processing {file_path.name}: {str(e)}")
+            print(f"Error processing {file_path.name}: {e!s}")
             failed += 1
 
     elapsed = time.time() - start_time
     total = success + failed
-    print(f"\nDone. {success} succeeded, {failed} failed out of {total} files ({elapsed:.1f}s)")
+    print(
+        f"\nDone. {success} succeeded, {failed} failed"
+        f" out of {total} files ({elapsed:.1f}s)"
+    )
 
     return {
         "total": total,
@@ -123,11 +126,18 @@ def process_directory(directory_path, model_name=DEFAULT_MODEL_NAME,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Transcribe audio files using faster-whisper")
-    parser.add_argument("directory", help="Directory containing audio files to transcribe")
-    parser.add_argument("--model", default=DEFAULT_MODEL_NAME,
-                      choices=list(SUPPORTED_MODELS),
-                      help=f"faster-whisper model to use (default: {DEFAULT_MODEL_NAME})")
+    parser = argparse.ArgumentParser(
+        description="Transcribe audio files using faster-whisper"
+    )
+    parser.add_argument(
+        "directory", help="Directory containing audio files to transcribe"
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL_NAME,
+        choices=list(SUPPORTED_MODELS),
+        help=f"faster-whisper model to use (default: {DEFAULT_MODEL_NAME})",
+    )
     parser.add_argument("--no-timestamps", action="store_true",
                       help="Disable timestamps in output")
     parser.add_argument("--output-format", default=DEFAULT_OUTPUT_FORMAT,
@@ -142,7 +152,7 @@ def main():
             not args.no_timestamps, args.output_format,
         )
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error: {e!s}")
         return 1
 
     return 0
