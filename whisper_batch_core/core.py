@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import math
 import os
-from typing import Iterable, List, Optional, Tuple
-
 import platform
+from collections.abc import Iterable
 from pathlib import Path
 
 from faster_whisper import WhisperModel
 
-from .types import TranscriptSegment, TranscriptionResult
+from .types import TranscriptionResult, TranscriptSegment
 
 # All formats supported by FFmpeg that faster-whisper can extract audio from.
 SUPPORTED_EXTENSIONS = {
@@ -31,7 +32,7 @@ TIMESTAMP_ONLY_OUTPUT_FORMATS = {"srt", "vtt"}
 
 MODEL_METADATA = {
     "tiny": {"size": "~75MB", "use_case": "Quick transcriptions, clear speech"},
-    "base": {"size": "~142MB", "use_case": "General purpose, good speed/accuracy balance"},
+    "base": {"size": "~142MB", "use_case": "General purpose, good speed/accuracy balance"},  # noqa: E501
     "small": {"size": "~466MB", "use_case": "Multiple languages, moderate accuracy"},
     "medium": {"size": "~1.5GB", "use_case": "Complex audio, multiple speakers"},
     "large-v3": {"size": "~3GB", "use_case": "Professional use, maximum accuracy"},
@@ -76,9 +77,17 @@ def is_model_cached(model_name: str) -> bool:
     return get_model_cache_dir(model_name).is_dir()
 
 
-def load_model(model_name: str, device: str = "auto", compute_type: Optional[str] = None) -> WhisperModel:
+def load_model(
+    model_name: str,
+    device: str = "auto",
+    compute_type: str | None = None,
+) -> WhisperModel:
     """Load a faster-whisper model with the requested device/compute settings."""
-    if device == "auto" and platform.system() == "Darwin" and platform.machine() == "arm64":
+    if (
+        device == "auto"
+        and platform.system() == "Darwin"
+        and platform.machine() == "arm64"
+    ):
         kwargs = {"device": "cpu", "compute_type": "int8"}
     else:
         kwargs = {"device": device}
@@ -98,7 +107,7 @@ def transcribe_segments(
     model: WhisperModel,
     audio_path: str,
     task: str = DEFAULT_TASK_NAME,
-) -> Tuple[List[TranscriptSegment], object]:
+) -> tuple[list[TranscriptSegment], object]:
     """Transcribe audio and return a list of segments plus metadata info."""
     segments, info = model.transcribe(audio_path, task=task)
     return [TranscriptSegment.from_whisper(segment) for segment in segments], info
@@ -137,7 +146,7 @@ def render_plain_text(segments: Iterable[TranscriptSegment]) -> str:
 
 def format_timestamp_with_millis(seconds: float, separator: str = ",") -> str:
     """Convert seconds to HH:MM:SS,mmm format for SRT/VTT."""
-    total_ms = int(round(float(seconds) * 1000))
+    total_ms = round(float(seconds) * 1000)
     hours = total_ms // 3600000
     minutes = (total_ms % 3600000) // 60000
     secs = (total_ms % 60000) // 1000
@@ -178,7 +187,11 @@ def result_to_json_payload(segments: Iterable[TranscriptSegment]) -> dict:
     return {
         "text": " ".join((s.text or "").strip() for s in seg_list).strip(),
         "segments": [
-            {"start": float(s.start), "end": float(s.end), "text": (s.text or "").strip()}
+            {
+                "start": float(s.start),
+                "end": float(s.end),
+                "text": (s.text or "").strip(),
+            }
             for s in seg_list
         ],
     }
@@ -193,9 +206,13 @@ def render_output_text(
     import json as _json
 
     if output_format == "txt":
-        return render_timestamped_text(segments) if include_timestamps else render_plain_text(segments)
+        if include_timestamps:
+            return render_timestamped_text(segments)
+        return render_plain_text(segments)
     if output_format == "json":
-        return _json.dumps(result_to_json_payload(segments), ensure_ascii=False, indent=2)
+        return _json.dumps(
+            result_to_json_payload(segments), ensure_ascii=False, indent=2
+        )
     if output_format == "srt":
         return render_srt(segments)
     if output_format == "vtt":
@@ -208,8 +225,8 @@ def transcribe_file(
     model_name: str = DEFAULT_MODEL_NAME,
     include_timestamps: bool = True,
     device: str = "auto",
-    compute_type: Optional[str] = None,
-    model: Optional[WhisperModel] = None,
+    compute_type: str | None = None,
+    model: WhisperModel | None = None,
     task: str = DEFAULT_TASK_NAME,
 ) -> TranscriptionResult:
     """Transcribe a single audio file and return text plus segments metadata."""

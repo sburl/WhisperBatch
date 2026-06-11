@@ -5,12 +5,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from whisper_batch_core import TranscriptSegment, TranscriptionResult
-
 from transcribe_audio import (
     _build_output_file_path,
     process_directory,
 )
+from whisper_batch_core import TranscriptionResult, TranscriptSegment
 
 
 class TestBuildOutputFilePath(unittest.TestCase):
@@ -41,9 +40,8 @@ class TestProcessDirectory(unittest.TestCase):
             process_directory("/nonexistent/path/xyz")
 
     def test_file_not_directory_raises(self):
-        with tempfile.NamedTemporaryFile() as f:
-            with self.assertRaises(ValueError):
-                process_directory(f.name)
+        with tempfile.NamedTemporaryFile() as f, self.assertRaises(ValueError):
+            process_directory(f.name)
 
     def test_invalid_model_raises(self):
         with tempfile.TemporaryDirectory() as tmpdir:
