@@ -33,3 +33,13 @@ build/
 
 # Generated transcription outputs (kept local)
 transcriptions/
+
+# Swift build artifacts
+.build/
+.swiftpm/
+*.xcodeproj
+xcuserdata/
+DerivedData/
+build/
+# Do not commit downloaded model binaries.
+Resources/Models/*.bin

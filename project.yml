@@ -1,0 +1,112 @@
+name: WhisperBatch
+options:
+  bundleIdPrefix: computer.acorn
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    DEVELOPMENT_TEAM: QU3VGF3F5C
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    ENABLE_HARDENED_RUNTIME: YES
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: 0.9.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    from: 2.6.0
+targets:
+  WhisperBatchCore:
+    type: framework
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/WhisperBatchCore
+    dependencies:
+      - package: WhisperKit
+        product: WhisperKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: computer.acorn.whisperbatch.core
+        GENERATE_INFOPLIST_FILE: YES
+  WhisperBatch:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/WhisperBatch
+      - path: Resources/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - target: WhisperBatchCore
+      - package: Sparkle
+        product: Sparkle
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: computer.acorn.whisperbatch
+        PRODUCT_NAME: WhisperBatch
+        INFOPLIST_FILE: Resources/WhisperBatch-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/WhisperBatch.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_SUEnableInstallerLauncherService: YES
+        INFOPLIST_KEY_SUPublicEDKey: ""
+        INFOPLIST_KEY_SUFeedURL: ""
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEBUG"
+        Release:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited)"
+  WhisperBatch-AppStore:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/WhisperBatch
+      - path: Resources/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - target: WhisperBatchCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: computer.acorn.whisperbatch
+        PRODUCT_NAME: WhisperBatch
+        INFOPLIST_FILE: Resources/WhisperBatch-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Resources/WhisperBatch-AppStore.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_STORE"
+schemes:
+  WhisperBatch:
+    build:
+      targets:
+        WhisperBatch: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  WhisperBatch-AppStore:
+    build:
+      targets:
+        WhisperBatch-AppStore: all
+    run:
+      config: AppStore
+    profile:
+      config: AppStore
+    analyze:
+      config: AppStore
+    archive:
+      config: AppStore
