@@ -10,28 +10,35 @@ final class FileQueueViewModel {
     var showFilePicker = false
 
     func addFiles(urls: [URL]) async {
-        for url in urls {
-            guard AudioFile.isSupported(url) else { continue }
-            // Avoid duplicates
-            guard !files.contains(where: { $0.url == url }) else { continue }
-
-            let file = AudioFile(url: url)
-
-            // Save a security-scoped bookmark for the file's parent directory
-            // so we can write output files next to the source when sandboxed.
-            BookmarkManager.saveBookmark(for: url)
-
-            // Validate and get duration
-            do {
-                let duration = try await FileValidator.validate(url: url)
-                file.duration = duration
-                file.status = .pending
-            } catch {
-                file.status = .invalid
-                file.errorMessage = error.localizedDescription
+        for selection in urls {
+            let access = SecurityScopedAccess(url: selection)
+            let isDirectory = (try? selection.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            let candidates: [URL]
+            if isDirectory {
+                let enumerator = FileManager.default.enumerator(
+                    at: selection, includingPropertiesForKeys: [.isRegularFileKey],
+                    options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                )
+                candidates = (enumerator?.allObjects as? [URL] ?? []).filter {
+                    (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+                }.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            } else {
+                candidates = [selection]
             }
-
-            files.append(file)
+            for url in candidates {
+                guard AudioFile.isSupported(url) else { continue }
+                guard !files.contains(where: { $0.url == url }) else { continue }
+                let file = AudioFile(url: url)
+                file.resourceAccess = access
+                do {
+                    file.duration = try await FileValidator.validate(url: url)
+                    file.status = .pending
+                } catch {
+                    file.status = .invalid
+                    file.errorMessage = error.localizedDescription
+                }
+                files.append(file)
+            }
         }
     }
 
