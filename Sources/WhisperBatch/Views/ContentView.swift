@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WhisperBatchCore
 
@@ -52,7 +53,7 @@ struct ContentView: View {
                     get: { fileQueueVM.showFilePicker },
                     set: { fileQueueVM.showFilePicker = $0 }
                 ),
-                allowedContentTypes: [.audio, .movie],
+                allowedContentTypes: [.audio, .movie, .folder],
                 allowsMultipleSelection: true
             ) { result in
                 if case .success(let urls) = result {
@@ -89,6 +90,25 @@ struct ContentView: View {
                 return
             }
         }
+
+        #if APP_STORE
+        if AppSettings.shared.customOutputDirectory == nil {
+            let panel = NSOpenPanel()
+            panel.title = "Choose a folder for transcripts"
+            panel.message = "Choose where WhisperBatch can save your transcripts."
+            panel.prompt = "Use Folder"
+            panel.canChooseFiles = false
+            panel.canChooseDirectories = true
+            panel.canCreateDirectories = true
+            panel.allowsMultipleSelection = false
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            let access = SecurityScopedAccess(url: url)
+            withExtendedLifetime(access) {
+                AppSettings.shared.customOutputDirectory = url
+            }
+            guard AppSettings.shared.customOutputDirectory != nil else { return }
+        }
+        #endif
 
         transcriptionVM.start(
             files: fileQueueVM.pendingFiles,

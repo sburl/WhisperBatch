@@ -141,6 +141,8 @@ public actor BatchProcessor {
         isStopRequested = false
         emit(.stateChanged(.running))
 
+        let outputAccess = outputDirectory.map { SecurityScopedAccess(url: $0) }
+        defer { withExtendedLifetime(outputAccess) {} }
         let startTime = ContinuousClock.now
         var pausedDuration: Duration = .zero
         var succeeded = 0

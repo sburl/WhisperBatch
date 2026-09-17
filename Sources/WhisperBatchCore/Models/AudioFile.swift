@@ -14,6 +14,7 @@ public enum AudioFileStatus: String, Sendable {
 public final class AudioFile: Identifiable {
     public let id: UUID
     public let url: URL
+    public var resourceAccess: SecurityScopedAccess?
     public let filename: String
     public var duration: TimeInterval?
     public var status: AudioFileStatus
