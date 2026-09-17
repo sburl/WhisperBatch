@@ -1,107 +1,53 @@
 # WhisperBatch
 
-**Created:** 2025-05-09-01-32
-**Last Updated:** 2026-06-11-00-00
+A native SwiftUI app for batch transcription on macOS 14 and later. Add recordings to a queue, choose a Whisper model, and save transcripts alongside the original files or in a chosen folder. Transcription runs locally through [WhisperKit](https://github.com/argmaxinc/WhisperKit).
 
-A Python package and GUI application for transcribing audio files using [faster-whisper](https://github.com/Systran/faster-whisper). Use the GUI for batch processing with a user-friendly interface, or install the package to use the transcription API in your own Python projects.
+## Features
 
----
+- Batch audio/video files with per-file model and output settings.
+- Waveform preview and cropping before transcription.
+- Plain text, SRT, VTT, and JSON output; optional timestamps in text.
+- Tiny, Small, Large v3 Turbo (the default), and Large v3 models.
+- Automatic model downloads on first use, then local transcription using cached models.
+- Optional silence skipping and a hallucination filter enabled by default.
+- A command-line interface using the same Swift transcription core.
 
-## Highlights
-- **Multiple Model Support** – tiny, base, small, medium, large-v3
-- **Batch Queue** – add/reorder/remove files while paused
-- **Progress & ETA** – per-file status plus global remaining-time estimate
-- **Timestamps** – optional per-segment timecodes
-- **Cross-platform** – macOS, Linux, Windows (Python ≥ 3.9)
+The Swift app supersedes the Python/Tkinter interface. The original app is preserved in [legacy/python](legacy/python), and the historical 1.0.0 release is the Python version.
 
----
+## Build the Mac app
 
-## Quick-start (all platforms)
-```bash
-# clone project
+Requirements: macOS 14+, Xcode with Swift 6+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen). Apple Silicon is recommended for local Core ML inference. Building dependencies and downloading a model initially require internet access.
+
+```sh
+brew install xcodegen
 git clone https://github.com/sburl/WhisperBatch.git
 cd WhisperBatch
-
-# one-step setup (creates .venv, installs deps, handles Apple-silicon quirks)
-chmod +x setup.sh
-./setup.sh
-
-# activate env & run GUI
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-python transcribe_gui.py
+./build-local.sh
+open build/DerivedData/Build/Products/AppStore/WhisperBatch.app
 ```
 
----
+The script creates an ad-hoc-signed local build with the updater disabled. It does not install into `/Applications`. This is a source-build workflow, not a signed and notarized public binary release. Python and a separate FFmpeg installation are not required for the Swift app.
 
-## Apple-Silicon notes (M-series Macs)
-1. The setup script auto-detects arm64 and ensures the **native** PyTorch CPU wheel is installed (`torch==2.4.1`).
-2. When you choose **Device = Auto** (default) the program now *automatically falls back* to **CPU + int8** compute-type. This avoids current CTranslate2/Metal seg-faults while still running ~2× real-time on an M1/M2/M3.
-3. Once a stable CTranslate2 Metal backend is released the GUI will switch back to GPU automatically.
+Open the app, add recordings, choose a model, and start transcription. The model downloads on first use. By default, output is plain text saved next to each source file. Settings lets you choose a different output folder and format.
 
-If you ever see the linker error below you are running an x86-64 wheel under Rosetta:
-```
-macOS 26 (2601) or later required, have instead 16 (1601) !
-```
-Fix with:
-```bash
-pip uninstall -y torch
-pip install --no-cache-dir --force-reinstall torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+## Command line
+
+```sh
+swift run whisperbatch-cli /path/to/recordings
+swift run whisperbatch-cli ./interview.m4a --model small --format srt --output ./transcripts
+swift run whisperbatch-cli ./recordings --format all --language en
+swift run whisperbatch-cli --help
 ```
 
----
+The CLI defaults to `large-v3-turbo` and `.txt` output alongside each input. Models download automatically; no separate GGML download is needed.
 
-## Requirements
-- Python 3.9 – 3.13
-- FFmpeg in PATH
-- Required pip packages (installed by `setup.sh`):
-  - faster-whisper
-  - torch (CPU wheel by default)
-  - librosa, numpy, tqdm, requests
+## Development
 
----
-
-## Running headless CLI
-Batch-transcribe an entire directory without the GUI:
-```bash
-python transcribe_audio.py /path/to/folder --model base
-```
-(Add `--no-timestamps` to disable timestamps.)
-
----
-
-## Core Package
-
-The non-GUI transcription utilities live in `whisper_batch_core/`. Install locally:
-
-```bash
-pip install -e .
+```sh
+swift build
+swift test
 ```
 
-Example usage:
+`Sources/WhisperBatch` contains the SwiftUI interface, `Sources/WhisperBatchCore` the shared engine, and `Sources/WhisperBatchCLI` the CLI. `project.yml` generates the Xcode project. The optional audio enhancement flag is currently a no-op in the WhisperKit engine; it is not an advertised transcription feature. The Sparkle updater is not configured for a public update feed.
 
-```python
-from whisper_batch_core import transcribe_file
-
-result = transcribe_file("path/to/audio.wav", model_name="base")
-text = result.text
-```
-
-API options:
-- `model_name`: model size such as `tiny`, `base`, `small`, `medium`, `large-v3`
-- `device`: `auto`, `cpu`, or `cuda`
-- `compute_type`: `float16`, `int8_float16`, `int8`, or `float32`
-- `include_timestamps`: include segment timestamps in the output text
-- `task`: `transcribe` or `translate`
-
----
-
-## Troubleshooting
-| Issue | Fix |
-|-------|-----|
-| `ModuleNotFoundError: _tkinter` | Reinstall Homebrew `python@3.x` **after** `brew install tcl-tk`, or use `/usr/bin/python3`. |
-| `macOS 26 / 16` loader abort | You installed an x86-64 PyTorch wheel – reinstall arm64 CPU wheel (see above). |
-| Segmentation fault on model load | Automatically mitigated by CPU fallback; update faster-whisper & CTranslate2 when new GPU wheels land. |
-
----
-
-MIT License © 2026
+The Swift source was migrated from the WhisperBatchApp directory of the author's SmallTools project, including its tests and app resources. See [LICENSE](LICENSE).
