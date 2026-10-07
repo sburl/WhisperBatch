@@ -44,16 +44,19 @@ jobs:
           pip install -e .
           pip install pytest ruff
 
-      - name: Run lint check
-        run: ruff check .
+      # Safe in parallel: ruff only reads sources (cache in .ruff_cache) and
+      # pytest writes only .pytest_cache/__pycache__ and temp dirs.
+      - parallel:
+          - name: Run lint check
+            run: ruff check .
 
-      - name: Run unit tests
-        run: |
-          if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
-            pytest -q
-          else
-            echo "No unit tests detected; skipping."
-          fi
+          - name: Run unit tests
+            run: |
+              if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
+                pytest -q
+              else
+                echo "No unit tests detected; skipping."
+              fi
 
   nightly-checks:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -82,18 +85,22 @@ jobs:
           pip install -e .
           pip install -r requirements-dev.txt
 
-      - name: Run unit tests
-        run: |
-          if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
-            pytest -q
-          else
-            echo "No unit tests detected; skipping."
-          fi
+      # Safe in parallel: all three only read the installed env and sources.
+      # pip-audit with no args inspects the current env without installing into
+      # it; bandit and ruff only read .py files; pytest writes only caches/temp dirs.
+      - parallel:
+          - name: Run unit tests
+            run: |
+              if [ -d tests ] && find tests -name 'test_*.py' -print -quit | grep -q .; then
+                pytest -q
+              else
+                echo "No unit tests detected; skipping."
+              fi
 
-      - name: Run formatting check
-        run: ruff check .
+          - name: Run formatting check
+            run: ruff check .
 
-      - name: Run dependency audit
-        run: |
-          pip-audit
-          bandit -r whisper_batch_core transcribe_audio.py
+          - name: Run dependency audit
+            run: |
+              pip-audit
+              bandit -r whisper_batch_core transcribe_audio.py
